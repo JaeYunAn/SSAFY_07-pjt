@@ -1,25 +1,26 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="panes">
-  <div class="pane">
-    <h3>사용자 입력</h3>
-    <div class="result">{{ result.request_text }}</div>
-    <a class="back" href="{% url 'recommend:image' %}">← 다시 입력</a>
-  </div>
-  <div class="pane">
-    <h3>FastAPI 결과 (표지 이미지)</h3>
-    {% if result.image %}
-      {# F712 완료 후: Django 의 media 폴더에 저장된 파일 #}
-      <img class="cover" src="{{ result.image.url }}" alt="생성된 표지 이미지">
-      <div class="meta">
-        브라우저가 받은 주소: <b>{{ result.image.url }}</b><br>
-        (Django 가 media 폴더에 파일로 보관해 제공합니다.)
-      </div>
-    {% else %}
-      {# F705: 이미지 파일을 HTML 안에 base64 로 직접 담음 (data URI) #}
-      <img class="cover" src="data:image/jpeg;base64,{{ image_base64 }}" alt="생성된 표지 이미지">
-      <div class="meta">이미지는 파일로 저장하지 않고 이 페이지 안에 직접 담겨 있습니다. (data URI)</div>
-    {% endif %}
-  </div>
+<section class="showcase is-dark">
+  <p class="eyebrow">{{ title }}</p>
+  <h1 class="headline">{{ result_headline }}</h1>
+  {% if result.image %}
+    {# F712: Django 의 media 폴더에 저장된 파일 #}
+    <img class="showcase-image" src="{{ result.image.url }}" alt="생성된 표지 이미지">
+    <p class="showcase-meta">
+      브라우저가 받은 주소: <b>{{ result.image.url }}</b><br>
+      Django 가 media 폴더에 파일로 보관해 제공합니다.
+    </p>
+  {% else %}
+    {# F705: 이미지 파일을 HTML 안에 base64 로 직접 담음 (data URI) #}
+    <img class="showcase-image" src="data:image/jpeg;base64,{{ image_base64 }}" alt="생성된 표지 이미지">
+    <p class="showcase-meta">이미지는 파일로 저장하지 않고 이 페이지 안에 직접 담겨 있습니다. (data URI)</p>
+  {% endif %}
+</section>
+
+<div class="page">
+  <section class="stage stage--under" style="padding-top:28px">
+    <div class="bubble-row"><p class="bubble">{{ result.request_text }}</p></div>
+    <a class="back" href="{% url 'recommend:image' %}">다시 입력</a>
+  </section>
 </div>
 {% endblock content %}

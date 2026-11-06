@@ -1,17 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="panes">
-  <div class="pane">
-    <h3>입력</h3>
-    <form method="post" enctype="multipart/form-data" novalidate>
+<div class="page">
+  {% include 'recommend/_page_head.html' %}
+  <section class="stage">
+    <form class="card" method="post" enctype="multipart/form-data" data-busy="표지를 읽고 비슷한 책을 찾고 있습니다." novalidate>
       {% csrf_token %}
-      {{ form }}
-      <button type="submit">분석 요청</button>
+      {% include 'recommend/_form_fields.html' %}
+      <div class="composer-actions">
+        <button class="pill pill--primary" type="submit">분석 요청</button>
+      </div>
     </form>
-  </div>
-  <div class="pane">
-    <h3>결과</h3>
-    <p style="color:#888; font-size:14px;">책 표지 사진을 올리면 FastAPI 가 분석한 결과가 여기에 표시됩니다.</p>
-  </div>
+  </section>
 </div>
 {% endblock content %}

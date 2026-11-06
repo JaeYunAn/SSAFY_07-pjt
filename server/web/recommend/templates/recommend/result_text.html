@@ -1,19 +1,49 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="panes">
-  <div class="pane">
-    <h3>사용자 입력</h3>
-    {% if uploaded %}<img class="cover" src="{{ uploaded.url }}" alt="업로드한 표지"><br><br>{% endif %}
-    <div class="result">{{ user_input }}</div>
-    <a class="back" href="{% url request.resolver_match.view_name %}">← 다시 입력</a>
-  </div>
-  <div class="pane">
-    <h3>FastAPI 결과</h3>
-    <div class="result">{{ result.content }}</div>
-    {% if result.model_used %}<div class="meta">사용된 모델: <b>{{ result.model_used }}</b></div>{% endif %}
-    {% if result.score is not None %}
-      <div class="meta">답변 점수: <b>{{ result.score }}</b> / 100<br>이유: {{ result.reason }}</div>
+<div class="page">
+  <header class="page-head">
+    <p class="eyebrow">{{ title }}</p>
+    <h1 class="headline">{{ result_headline }}</h1>
+  </header>
+
+  <section class="stage">
+    <div class="bubble-row">
+      {% if uploaded %}<img class="bubble-image" src="{{ uploaded.url }}" alt="업로드한 표지">{% endif %}
+      <p class="bubble">{{ user_input }}</p>
+    </div>
+
+    {% if result.route %}
+    <article class="card">
+      <div class="route-map">
+        <div class="route-node{% if result.route == '/chat/completions' %} is-on{% endif %}">
+          <code>/chat/completions</code><small>텍스트 추천</small>
+        </div>
+        <div class="route-node{% if result.route == '/images/generations' %} is-on{% endif %}">
+          <code>/images/generations</code><small>표지 이미지 생성</small>
+        </div>
+      </div>
+      <p class="note">{{ result.content }}</p>
+    </article>
+    {% else %}
+    <article class="card answer">{{ result.content }}</article>
     {% endif %}
-  </div>
+
+    {% if result.model_used or result.score is not None %}
+    <div class="facts">
+      {% if result.model_used %}<span class="chip">사용된 모델 <b>{{ result.model_used }}</b></span>{% endif %}
+      {% if result.score is not None %}
+      <div class="score">
+        <div class="score-ring{% if result.score < 50 %} score-ring--low{% elif result.score < 80 %} score-ring--mid{% endif %}" style="--score: {{ result.score }}"><b>{{ result.score }}</b></div>
+        <div>
+          <p class="score-title">답변 점수 {{ result.score }} / 100</p>
+          <p class="score-reason">{{ result.reason }}</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <a class="back" href="{% url request.resolver_match.view_name %}">다시 입력</a>
+  </section>
 </div>
 {% endblock content %}

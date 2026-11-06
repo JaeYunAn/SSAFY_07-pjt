@@ -1,17 +1,19 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="panes">
-  <div class="pane">
-    <h3>사용자 입력</h3>
-    <div class="result">{{ user_input }}</div>
-    <a class="back" href="{% url request.resolver_match.view_name %}">← 다시 입력</a>
-  </div>
-  <div class="pane">
-    <h3>FastAPI 결과 (Guardrail)</h3>
-    <div class="notice reject">
-      적절한 요청이 아닙니다.<br>
-      <small>Proxy 서버가 403 으로 거절했습니다. (Guardrail)</small>
-    </div>
-  </div>
+<div class="page">
+  <section class="notice-page">
+    <svg class="notice-icon notice-icon--reject" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M32 6l20 7v15c0 13-8 24-20 30C20 52 12 41 12 28V13z"/>
+      <path d="M25 25l14 14M39 25L25 39"/>
+    </svg>
+    <h1 class="headline">적절한 요청이 아닙니다.</h1>
+    <p class="lead">폭력, 혐오, 불법 행위, 개인정보와 관련된 요청은 도와드릴 수 없습니다. 읽고 싶은 책의 분위기나 장르로 다시 말씀해 주세요.</p>
+    <p class="notice-detail">Proxy 서버가 403 으로 거절했습니다. (Guardrail)</p>
+  </section>
+
+  <section class="stage">
+    <div class="bubble-row"><p class="bubble">{{ user_input }}</p></div>
+    <a class="back" href="{% url request.resolver_match.view_name %}">다시 입력</a>
+  </section>
 </div>
 {% endblock content %}

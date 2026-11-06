@@ -1,0 +1,29 @@
+{{ form.non_field_errors }}
+{% for field in form %}
+  {% if field.widget_type == 'checkbox' %}
+    <label class="switch-row" for="{{ field.id_for_label }}">
+      <span>{{ field.label }}</span>
+      {{ field }}
+      <span class="switch" aria-hidden="true"></span>
+    </label>
+    {{ field.errors }}
+  {% elif field.widget_type == 'clearablefile' %}
+    <div class="field">
+      <span class="field-label">{{ field.label }}</span>
+      <div class="dropzone{% if field.errors %} has-error{% endif %}">
+        {{ field }}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>
+        <strong>사진을 선택하거나 여기로 끌어 놓으세요</strong>
+        <span class="dropzone-note">PNG, JPG · 10MB 이하</span>
+        <img class="dropzone-preview" alt="선택한 표지 미리보기" hidden>
+      </div>
+      {{ field.errors }}
+    </div>
+  {% else %}
+    <div class="field">
+      <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    </div>
+  {% endif %}
+{% endfor %}

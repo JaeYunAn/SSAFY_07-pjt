@@ -1,11 +1,6 @@
 """
 화면 처리. 뷰 하나가 화면 하나를 담당합니다.
 
-각 뷰 위에 (제공) 또는 TODO 가 적혀 있습니다.
-  (제공)  — 그대로 사용합니다. 수정하지 않습니다.
-  TODO   — 함수 안의 # TODO [F7xx] 아래 번호 1) 2) 3) … 순서대로 작성합니다.
-           작성할 때는 위쪽의 (제공) 뷰를 그대로 따라 쓰면 됩니다.
-
 모든 뷰가 같은 모양입니다.
   1) POST 이면 ModelForm 으로 검증, 아니면 빈 폼을 만들어 입력 화면을 보여줌
   2) payload 를 만들어 requests.post 로 Proxy 서버(FastAPI)를 호출
@@ -24,6 +19,58 @@ RECOMMEND_SYSTEM_PROMPT = '''
 너는 친절한 도서 추천 도우미이다. 사용자의 취향과 상황에 맞는 책을 2~3권 추천하고,
 각 책마다 제목, 저자, 추천 이유를 한두 문장으로 설명한다. 한국어로 답한다.
 '''
+
+# 화면별 문구. 제목(title)은 요구사항 이름을 그대로 쓴다.
+PAGES = {
+    'form': {
+        'title': '입력 검증',
+        'headline': '300자 안에, 정확하게.',
+        'lead': '빈 값과 글자 수를 Django ModelForm 이 먼저 확인합니다.',
+    },
+    'text': {
+        'title': '텍스트 추천 생성',
+        'headline': '취향을 말하면, 책이 답합니다.',
+        'lead': '읽고 싶은 분위기, 상황, 장르를 자유롭게 적어 보세요.',
+        'result_headline': '이런 책은 어떠세요?',
+    },
+    'route': {
+        'title': '라우트 결정',
+        'headline': '요청을 읽고, 길을 고릅니다.',
+        'lead': '텍스트 추천인지 표지 이미지 생성인지 AI 가 판단합니다.',
+        'result_headline': '이 길로 처리합니다.',
+    },
+    'image': {
+        'title': '이미지 생성',
+        'headline': '상상한 표지를 그대로.',
+        'lead': '원하는 장면과 분위기를 적으면 표지 이미지를 그려 드립니다.',
+        'result_headline': '표지가 완성됐어요.',
+        'costly': True,
+    },
+    'analyze': {
+        'title': '이미지 분석',
+        'headline': '표지만 보여 주세요.',
+        'lead': '제목과 장르를 추정하고, 비슷한 책을 찾아 드립니다.',
+        'result_headline': '표지를 이렇게 읽었어요.',
+    },
+    'flow': {
+        'title': 'API 흐름 제어',
+        'headline': '한 문장이면 충분합니다.',
+        'lead': '요청을 읽고 추천할지 그릴지 판단해, 결과까지 한 번에 보여 드립니다.',
+        'result_headline': '요청하신 결과입니다.',
+        'costly': True,
+    },
+    'tts': {
+        'title': 'TTS',
+        'headline': '추천을 귀로 듣는 시간.',
+        'lead': '추천 이유나 읽고 싶은 문장을 음성으로 들려 드립니다.',
+        'result_headline': '재생해 보세요.',
+    },
+}
+
+
+# ---------------------------------------------------------------- 서비스 소개
+def home(request):
+    return render(request, 'recommend/home.html', {'title': 'AI 도서 추천 서비스'})
 
 
 # ---------------------------------------------------------------- F701 입력 검증
@@ -59,10 +106,10 @@ def text_recommend(request):
 
             # 2) 응답 코드를 확인한다 (F706)
             if response.status_code == 403:
-                context = {'user_input': result.request_text}
+                context = {**PAGES['text'], 'user_input': result.request_text}
                 return render(request, 'recommend/rejected.html', context, status=403)
             if response.status_code != 200:
-                context = {'user_input': result.request_text, 'status_code': response.status_code}
+                context = {**PAGES['text'], 'user_input': result.request_text, 'status_code': response.status_code}
                 return render(request, 'recommend/error.html', context, status=503)
 
             # 3) 결과를 객체에 담는다
@@ -79,7 +126,7 @@ def text_recommend(request):
 
             result.save()
             context = {
-                'title': '텍스트 추천 생성',
+                **PAGES['text'],
                 'user_input': result.request_text,
                 'result': result,
             }
@@ -87,7 +134,7 @@ def text_recommend(request):
     else:
         form = RecommendationForm()
     context = {
-        'title': '텍스트 추천 생성',
+        **PAGES['text'],
         'form': form,
     }
     return render(request, 'recommend/input_form.html', context)
@@ -104,7 +151,7 @@ def decide_route(request):
             response = requests.post(settings.PROXY_URL + '/decide-route', json=payload, timeout=180)
 
             if response.status_code != 200:
-                context = {'user_input': result.request_text, 'status_code': response.status_code}
+                context = {**PAGES['route'], 'user_input': result.request_text, 'status_code': response.status_code}
                 return render(request, 'recommend/error.html', context, status=503)
 
             data = response.json()
@@ -112,7 +159,7 @@ def decide_route(request):
             result.content = f'결정된 route: {result.route}'
             result.save()
             context = {
-                'title': '라우트 결정',
+                **PAGES['route'],
                 'user_input': result.request_text,
                 'result': result,
             }
@@ -120,7 +167,7 @@ def decide_route(request):
     else:
         form = RecommendationForm()
     context = {
-        'title': '라우트 결정',
+        **PAGES['route'],
         'form': form,
     }
     return render(request, 'recommend/input_form.html', context)
@@ -137,10 +184,10 @@ def image_recommend(request):
             response = requests.post(settings.PROXY_URL + '/images/generations', json=payload, timeout=180)
 
             if response.status_code == 403:
-                context = {'user_input': result.request_text}
+                context = {**PAGES['image'], 'user_input': result.request_text}
                 return render(request, 'recommend/rejected.html', context, status=403)
             if response.status_code != 200:
-                context = {'user_input': result.request_text, 'status_code': response.status_code}
+                context = {**PAGES['image'], 'user_input': result.request_text, 'status_code': response.status_code}
                 return render(request, 'recommend/error.html', context, status=503)
 
             data = response.json()
@@ -153,7 +200,7 @@ def image_recommend(request):
 
             result.save()
             context = {
-                'title': '이미지 생성',
+                **PAGES['image'],
                 'result': result,
                 'image_base64': image_base64,      # F705: 화면에서 data URI 로 바로 표시
             }
@@ -161,7 +208,7 @@ def image_recommend(request):
     else:
         form = RecommendationForm()
     context = {
-        'title': '이미지 생성',
+        **PAGES['image'],
         'form': form,
     }
     return render(request, 'recommend/input_form.html', context)
@@ -182,17 +229,17 @@ def image_analysis(request):
             response = requests.post(settings.PROXY_URL + '/images/analysis', json=payload, timeout=180)
 
             if response.status_code == 403:
-                context = {'user_input': result.question}
+                context = {**PAGES['analyze'], 'user_input': result.question}
                 return render(request, 'recommend/rejected.html', context, status=403)
             if response.status_code != 200:
-                context = {'user_input': result.question, 'status_code': response.status_code}
+                context = {**PAGES['analyze'], 'user_input': result.question, 'status_code': response.status_code}
                 return render(request, 'recommend/error.html', context, status=503)
 
             data = response.json()
             result.content = data['content']
             result.save()
             context = {
-                'title': '이미지 분석',
+                **PAGES['analyze'],
                 'user_input': result.question,
                 'result': result,
                 'uploaded': result.image,
@@ -201,7 +248,7 @@ def image_analysis(request):
     else:
         form = ImageAnalysisForm()
     context = {
-        'title': '이미지 분석',
+        **PAGES['analyze'],
         'form': form,
     }
     return render(request, 'recommend/upload_form.html', context)
