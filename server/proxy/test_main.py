@@ -200,12 +200,17 @@ class ImageGenerationTests(ProxyTestCase):
         self.assertEqual(result, {"image_base64": "QUJD"})
         self.assertTrue(self.called_url().endswith("/images/generations"))
         sent = self.sent()
-        self.assertEqual(sent["model"], "gpt-image-1-mini")
+        self.assertEqual(sent["model"], main.MODEL_IMAGE)
         self.assertIn("등대 표지", sent["prompt"])
         self.assertEqual(
             (sent["size"], sent["quality"], sent["output_format"]),
             ("1024x1024", "low", "jpeg"),
         )
+
+
+    def test_default_model_is_the_one_in_the_spec(self):
+        source = Path(main.__file__).read_text(encoding="utf-8")
+        self.assertIn('os.getenv("GMS_IMAGE_MODEL", "gpt-image-1-mini")', source)
 
 
 class CommonErrorTests(ProxyTestCase):

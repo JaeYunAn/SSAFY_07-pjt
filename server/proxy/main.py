@@ -47,7 +47,9 @@ GMS_TIMEOUT = 120
 
 MODEL_NANO = "gpt-5-nano"       # 가볍고 저렴한 모델
 MODEL_MINI = "gpt-5-mini"       # 더 성능 좋은 모델
-MODEL_IMAGE = "gpt-image-1-mini"  # GMS 에는 dall-e 가 없음. 응답은 URL 이 아니라 b64_json
+# GMS 에는 dall-e 가 없음. 응답은 URL 이 아니라 b64_json
+# 명세의 모델은 gpt-image-1-mini 이다. GMS 가 이 모델을 거부하면(400) .env 의 GMS_IMAGE_MODEL 로 바꿀 수 있다.
+MODEL_IMAGE = os.getenv("GMS_IMAGE_MODEL", "gpt-image-1-mini")
 MODEL_TTS = "gpt-4o-mini-tts"
 
 app = FastAPI(title="Book Recommend Proxy (FastAPI)")
