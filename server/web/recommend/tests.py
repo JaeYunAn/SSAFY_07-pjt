@@ -78,6 +78,19 @@ class UrlConfigTests(SimpleTestCase):
                 self.assertIsNone(hardcoded.search(template.read_text(encoding='utf-8')))
 
 
+class ApiKeyScreenTests(ProxyMockTestCase):
+    """NF702 API Key 관리 — Django 와 브라우저는 GMS Key 를 갖지 않는다"""
+
+    def test_django_has_no_key_and_sends_no_auth_header(self):
+        self.assertFalse(hasattr(settings, 'GMS_KEY'))
+        self.post.return_value = FakeResponse(200, {'route': '/chat/completions'})
+
+        self.client.post(reverse('recommend:route'), {'request_text': '소설 추천해줘'})
+
+        self.assertNotIn('headers', self.post.call_args.kwargs)
+        self.assertIn('/api/v1/decide-route', self.post.call_args.args[0])
+
+
 class InputValidationTests(TestCase):
     """F701 입력 검증"""
     url_name = 'recommend:form'

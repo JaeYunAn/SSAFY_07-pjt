@@ -13,6 +13,7 @@ FastAPI Proxy 서버. 이 파일 하나가 서버 전부입니다. (Django 만 �
 import base64
 import json
 import os
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
@@ -35,10 +36,13 @@ from schemas import (
     ImageGenerationResponse,
 )
 
-load_dotenv(".env")
+# NF702: GMS Key 는 이 폴더의 .env 에만 저장한다. 코드에 직접 쓰지 않고, Django 와 브라우저에는 전달하지 않는다.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 GMS_KEY = os.getenv("GMS_KEY")
-GMS_URL = os.getenv("GMS_URL")
+GMS_URL = os.getenv("GMS_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1")
 HEADERS = {"Authorization": f"Bearer {GMS_KEY}"}
+if not GMS_KEY:
+    print("[설정 오류] server/proxy/.env 에 GMS_KEY 가 없습니다. 모든 모델 호출이 503 으로 실패합니다.")
 
 MODEL_NANO = "gpt-5-nano"       # 가볍고 저렴한 모델
 MODEL_MINI = "gpt-5-mini"       # 더 성능 좋은 모델

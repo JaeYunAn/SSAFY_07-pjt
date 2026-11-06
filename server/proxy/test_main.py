@@ -6,6 +6,7 @@ Proxy 서버 테스트. 실제 GMS 는 호출하지 않고 requests.post 를 가
 import base64
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import requests
@@ -59,6 +60,39 @@ class ProxyTestCase(unittest.TestCase):
 
     def called_url(self, index=-1):
         return self.post.call_args_list[index].args[0]
+
+
+class ApiKeyTests(ProxyTestCase):
+    """NF702 API Key 관리"""
+    project_root = Path(main.__file__).resolve().parents[2]
+
+    def test_key_is_read_from_environment_and_sent_only_to_gms(self):
+        self.assertIn('os.getenv("GMS_KEY")', Path(main.__file__).read_text(encoding="utf-8"))
+        self.post.return_value = FakeResponse(200, {})
+
+        main.gms_post("/chat/completions", {})
+
+        self.assertEqual(self.post.call_args.kwargs["headers"], main.HEADERS)
+        self.assertEqual(main.HEADERS["Authorization"], f"Bearer {main.GMS_KEY}")
+
+    def test_env_file_is_ignored_and_example_has_no_real_key(self):
+        ignore_rules = (self.project_root / ".gitignore").read_text(encoding="utf-8").splitlines()
+        self.assertIn(".env", ignore_rules)
+        example = (Path(main.__file__).parent / ".env.example").read_text(encoding="utf-8")
+        self.assertIn("GMS_KEY=여기에_GMS_키", example)
+
+    def test_real_key_never_appears_in_source_files(self):
+        if not main.GMS_KEY:
+            self.skipTest("이 환경에는 GMS_KEY 가 없음")
+        sources = [
+            path for path in (self.project_root / "server").rglob("*")
+            if path.is_file()
+            and path.name != ".env"
+            and path.suffix in {".py", ".html", ".css", ".js", ".txt", ".md", ".example", ".sample"}
+        ]
+        self.assertTrue(sources)
+        for path in sources:
+            self.assertNotIn(main.GMS_KEY, path.read_text(encoding="utf-8"), path)
 
 
 class TextRecommendTests(ProxyTestCase):
