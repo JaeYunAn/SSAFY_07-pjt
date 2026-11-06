@@ -14,8 +14,7 @@ class Speech(models.Model):
 
 
 class Recommendation(models.Model):
-    # TODO [F701] 도서 취향을 입력받는 request_text 필드를 TextField(max_length=300) 로 정의한다.
-
+    request_text = models.TextField(max_length=300)     # F701: 사용자가 입력한 도서 취향
     use_tier_routing = models.BooleanField(default=False)
     route = models.CharField(max_length=50, blank=True)
     content = models.TextField(blank=True)

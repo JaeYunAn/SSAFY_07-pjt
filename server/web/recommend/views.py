@@ -76,15 +76,20 @@ def home(request):
 # ---------------------------------------------------------------- F701 입력 검증
 def recommend_form(request):
     """입력 검증만 확인하는 화면. 검증을 통과하면 저장하고 입력값을 그대로 보여줍니다."""
-    # TODO [F701]
-    #   1) saved = None 으로 시작한다.
-    #   2) POST 이면 form = RecommendationForm(request.POST) 를 만들고,
-    #      form.is_valid() 를 통과하면 saved = form.save() 로 저장한다.
-    #      (검증에 실패하면 form 에 오류 메시지가 들어 있어 같은 화면에 표시된다)
-    #   3) GET 이면 form = RecommendationForm() 으로 빈 폼을 만든다.
-    #   4) context = {'title': '입력 검증', 'form': form, 'saved': saved} 를 만들어
-    #      render(request, 'recommend/input_form.html', context) 를 반환한다.
-    pass
+    saved = None
+    if request.method == 'POST':
+        form = RecommendationForm(request.POST)
+        if form.is_valid():
+            saved = form.save()
+        # 검증에 실패하면 form 에 오류 메시지가 들어 있어 같은 화면에 표시된다
+    else:
+        form = RecommendationForm()
+    context = {
+        **PAGES['form'],
+        'form': form,
+        'saved': saved,
+    }
+    return render(request, 'recommend/input_form.html', context)
 
 
 # ---------------------------------------------------------------- F702 텍스트 추천 (제공, F709 심화 추가)

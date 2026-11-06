@@ -28,13 +28,14 @@ class SpeechForm(forms.ModelForm):
 
 
 class RecommendationForm(forms.ModelForm):
-    # TODO [F701]
-    #   1) 아래 use_tier_routing 처럼 request_text 입력 필드를 선언한다.
-    #      forms.CharField(label='읽고 싶은 책에 대해 알려주세요', max_length=300,
-    #                      widget=forms.Textarea(attrs={
-    #                          'rows': 5,
-    #                          'placeholder': '예) 출퇴근길에 가볍게 읽을 성장 소설 추천해줘'}))
-
+    request_text = forms.CharField(
+        label='읽고 싶은 책에 대해 알려주세요',
+        max_length=300,     # 서버 검증과 함께 입력창의 maxlength 속성도 만들어 준다
+        widget=forms.Textarea(attrs={
+            'rows': 5,
+            'placeholder': '예) 출퇴근길에 가볍게 읽을 성장 소설 추천해줘',
+        }),
+    )
     use_tier_routing = forms.BooleanField(
         label='요청 난이도에 따라 모델 자동 선택 (심화)',
         required=False,
@@ -42,6 +43,4 @@ class RecommendationForm(forms.ModelForm):
 
     class Meta:
         model = Recommendation
-        # TODO [F701]
-        #   1) fields 에 'request_text' 를 추가한다.
-        fields = ['use_tier_routing']
+        fields = ['request_text', 'use_tier_routing']
