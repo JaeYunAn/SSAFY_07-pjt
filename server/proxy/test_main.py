@@ -95,6 +95,28 @@ class ApiKeyTests(ProxyTestCase):
             self.assertNotIn(main.GMS_KEY, path.read_text(encoding="utf-8"), path)
 
 
+class TimeoutTests(ProxyTestCase):
+    """NF704 호출 시간 제한 — FastAPI → GMS 는 120초"""
+
+    def test_every_gms_call_has_timeout(self):
+        self.post.side_effect = [
+            json_reply(**GUARD_OK),
+            json_reply(tier="simple"),
+            chat_reply("추천 답변"),
+            json_reply(route="/chat/completions"),
+            FakeResponse(200, content=b"mp3-bytes"),
+        ]
+        messages = [{"role": "user", "content": "소설 추천해줘"}]
+
+        main.chat_completions(ChatRequest(messages=messages, use_tier_routing=True))
+        main.decide_route(DecideRouteRequest(prompt="소설 추천해줘"))
+        main.generate_speech(GenerateSpeechRequest(text="문장"))
+
+        self.assertEqual(self.post.call_count, 5)
+        for call in self.post.call_args_list:
+            self.assertEqual(call.kwargs["timeout"], 120)
+
+
 class TextRecommendTests(ProxyTestCase):
     """F702 텍스트 추천 생성"""
 

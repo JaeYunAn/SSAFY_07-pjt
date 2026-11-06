@@ -44,6 +44,9 @@ HEADERS = {"Authorization": f"Bearer {GMS_KEY}"}
 if not GMS_KEY:
     print("[설정 오류] server/proxy/.env 에 GMS_KEY 가 없습니다. 모든 모델 호출이 503 으로 실패합니다.")
 
+# NF704: Django → FastAPI(180초)보다 짧게 잡아, 시간이 초과되면 FastAPI 가 503 을 돌려줄 수 있게 한다.
+GMS_TIMEOUT = 120
+
 MODEL_NANO = "gpt-5-nano"       # 가볍고 저렴한 모델
 MODEL_MINI = "gpt-5-mini"       # 더 성능 좋은 모델
 MODEL_IMAGE = "gpt-image-1-mini"  # GMS 에는 dall-e 가 없음. 응답은 URL 이 아니라 b64_json
@@ -208,7 +211,7 @@ def model_server_error():
 def gms_post(path, payload):
     """GMS 에 POST 요청을 보냅니다. 모든 GMS 호출이 이 함수를 거칩니다."""
     try:
-        response = requests.post(GMS_URL + path, headers=HEADERS, json=payload, timeout=120)
+        response = requests.post(GMS_URL + path, headers=HEADERS, json=payload, timeout=GMS_TIMEOUT)
     except requests.RequestException as error:      # 연결 실패, 시간 초과
         print("[GMS 호출 실패]", path, error)
         raise model_server_error()

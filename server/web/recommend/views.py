@@ -22,6 +22,9 @@ RECOMMEND_SYSTEM_PROMPT = '''
 화면에 그대로 표시되므로 마크다운 기호(*, #)는 쓰지 않는다.
 '''
 
+# NF704: FastAPI → GMS(120초)보다 길게 잡아, FastAPI 가 보낸 오류 응답을 받아 안내 화면을 보여줄 수 있게 한다.
+PROXY_TIMEOUT = 180
+
 # 화면별 문구. 제목(title)은 요구사항 이름을 그대로 쓴다.
 PAGES = {
     'form': {
@@ -74,7 +77,7 @@ PAGES = {
 def call_proxy(path, payload):
     """Proxy 서버(FastAPI)를 호출합니다. 연결 실패나 시간 초과로 응답이 없으면 None 을 돌려줍니다."""
     try:
-        return requests.post(settings.PROXY_URL + path, json=payload, timeout=180)
+        return requests.post(settings.PROXY_URL + path, json=payload, timeout=PROXY_TIMEOUT)
     except requests.RequestException as error:
         print('[Proxy 호출 실패]', path, error)
         return None
