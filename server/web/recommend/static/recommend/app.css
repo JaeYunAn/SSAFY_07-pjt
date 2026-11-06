@@ -493,7 +493,8 @@ a:hover { text-decoration: underline; }
 }
 .showcase-meta { margin-top: 22px; font-size: 13px; line-height: 1.6; color: var(--moon-2); }
 .showcase-meta b { color: var(--moon); font-family: var(--mono); font-weight: 500; overflow-wrap: anywhere; }
-.stage--under { margin-top: 28px; }
+.stage--under { padding-top: 28px; }
+.page--tail { min-height: 0; }      /* 쇼케이스 아래에 이어지는 영역은 화면 높이를 채우지 않는다 */
 
 /* 음성 결과 */
 audio { display: block; width: 100%; }

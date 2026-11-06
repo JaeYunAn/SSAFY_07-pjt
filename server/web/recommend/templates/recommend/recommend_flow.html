@@ -8,7 +8,7 @@
 </section>
 {% endif %}
 
-<div class="page">
+<div class="page{% if image_base64 %} page--tail{% endif %}">
   {% if not image_base64 %}
   <header class="page-head">
     <p class="eyebrow">{{ title }}</p>
@@ -16,7 +16,7 @@
   </header>
   {% endif %}
 
-  <section class="stage{% if image_base64 %} stage--under{% endif %}"{% if image_base64 %} style="padding-top:28px"{% endif %}>
+  <section class="stage{% if image_base64 %} stage--under{% endif %}">
     <ol class="flowline" aria-label="처리 순서">
       <li>입력 검증</li>
       <li>라우트 결정 <code>{{ result.route }}</code></li>
