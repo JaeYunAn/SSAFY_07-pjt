@@ -18,6 +18,8 @@ from .forms import RecommendationForm, ImageAnalysisForm, SpeechForm
 RECOMMEND_SYSTEM_PROMPT = '''
 너는 친절한 도서 추천 도우미이다. 사용자의 취향과 상황에 맞는 책을 2~3권 추천하고,
 각 책마다 제목, 저자, 추천 이유를 한두 문장으로 설명한다. 한국어로 답한다.
+실제로 출간된 책만 추천하고, 정보가 부족해도 되묻지 말고 주어진 내용만으로 바로 추천한다.
+화면에 그대로 표시되므로 마크다운 기호(*, #)는 쓰지 않는다.
 '''
 
 # 화면별 문구. 제목(title)은 요구사항 이름을 그대로 쓴다.

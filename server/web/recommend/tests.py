@@ -3,10 +3,36 @@ Django 쪽 테스트. Proxy 서버는 띄우지 않고 requests.post 를 가짜�
 
 실행: server/web 폴더에서 python manage.py test
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import Recommendation
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, body=None):
+        self.status_code = status_code
+        self.body = body or {}
+
+    def json(self):
+        return self.body
+
+
+class ProxyMockTestCase(TestCase):
+    """requests.post 를 가짜로 바꾼 테스트의 공통 부분."""
+
+    def setUp(self):
+        patcher = patch('recommend.views.requests.post')
+        self.post = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def called_paths(self):
+        return [call.args[0].rsplit('/api/v1', 1)[1] for call in self.post.call_args_list]
+
+    def sent(self, index=-1):
+        return self.post.call_args_list[index].kwargs['json']
 
 
 class InputValidationTests(TestCase):
@@ -45,3 +71,25 @@ class InputValidationTests(TestCase):
         self.assertTemplateUsed(response, 'recommend/input_form.html')
         self.assertContains(response, '입력 검증을 통과했습니다')
         self.assertContains(response, '출퇴근길에 가볍게 읽을 성장 소설을 추천해줘')
+
+
+class TextRecommendTests(ProxyMockTestCase):
+    """F702 텍스트 추천 생성"""
+
+    def test_shows_and_saves_recommendation(self):
+        self.post.return_value = FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'})
+
+        response = self.client.post(reverse('recommend:text'), {'request_text': '성장 소설 추천해줘'})
+
+        self.assertTemplateUsed(response, 'recommend/result_text.html')
+        self.assertContains(response, '데미안을 추천합니다.')
+        self.assertContains(response, 'gpt-5-nano')
+        self.assertEqual(self.called_paths()[0], '/chat/completions')
+        self.assertEqual(self.sent(0)['messages'][-1], {'role': 'user', 'content': '성장 소설 추천해줘'})
+        self.assertEqual(Recommendation.objects.get().content, '데미안을 추천합니다.')
+
+    def test_invalid_form_does_not_call_proxy(self):
+        response = self.client.post(reverse('recommend:text'), {'request_text': ''})
+
+        self.assertTemplateUsed(response, 'recommend/input_form.html')
+        self.post.assert_not_called()

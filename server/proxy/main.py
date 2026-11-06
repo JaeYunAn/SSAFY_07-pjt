@@ -79,11 +79,8 @@ def chat_completions(request: ChatRequest):
     #   1) model = MODEL_NANO 로 두고, request.use_tier_routing 이 True 이고
     #      decide_model_tier(user_text) 가 "complex" 이면 model = MODEL_MINI 로 바꾼다.
 
-    # TODO [F702]
-    #   1) content = ask_gms(request.messages, MODEL_NANO) 로 답변 문자열을 받는다.
-    #   2) {"content": content} 를 반환한다.
-    #      (F710 을 하면 MODEL_NANO 를 model 로 바꾸고 "model_used": model 을 함께 반환한다)
-    pass
+    content = ask_gms(request.messages, MODEL_NANO)
+    return {"content": content, "model_used": MODEL_NANO}
 
 
 # ---------------------------------------------------------------- F703 Guardrail
