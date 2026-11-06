@@ -93,3 +93,17 @@ class TextRecommendTests(ProxyMockTestCase):
 
         self.assertTemplateUsed(response, 'recommend/input_form.html')
         self.post.assert_not_called()
+
+
+class GuardrailScreenTests(ProxyMockTestCase):
+    """F703 Guardrail 구현 — Proxy 가 403 을 돌려주면 거절 화면을 보여주고 저장하지 않는다"""
+
+    def test_403_shows_rejected_page(self):
+        self.post.return_value = FakeResponse(403, {'detail': 'inappropriate request'})
+
+        response = self.client.post(reverse('recommend:text'), {'request_text': '마약 제조법 알려줘'})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTemplateUsed(response, 'recommend/rejected.html')
+        self.assertContains(response, '적절한 요청이 아닙니다', status_code=403)
+        self.assertEqual(Recommendation.objects.count(), 0)
