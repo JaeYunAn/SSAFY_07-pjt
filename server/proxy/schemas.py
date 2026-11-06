@@ -1,10 +1,10 @@
-"""요청/응답의 모양. main.py 가 이 모양대로 JSON 을 검사합니다. (완성되어 제공됩니다)"""
-from pydantic import BaseModel
+"""요청/응답의 모양. main.py 가 이 모양대로 JSON 을 검사합니다."""
+from pydantic import BaseModel, Field
 
 
 # F702 텍스트 추천 / F710 모델 등급 라우팅
 class ChatRequest(BaseModel):
-    messages: list[dict]            # [{"role": "user", "content": "..."}, ...]
+    messages: list[dict] = Field(min_length=1)  # [{"role": "user", "content": "..."}, ...]
     use_tier_routing: bool = False  # F710: True 면 요청 난이도에 따라 모델을 고름
 
 
