@@ -7,6 +7,7 @@ import json
 import unittest
 from unittest.mock import patch
 
+import requests
 from fastapi import HTTPException
 
 import main
@@ -146,6 +147,54 @@ class ImageGenerationTests(ProxyTestCase):
             (sent["size"], sent["quality"], sent["output_format"]),
             ("1024x1024", "low", "jpeg"),
         )
+
+
+class CommonErrorTests(ProxyTestCase):
+    """F706 공통 에러 처리"""
+
+    def assert_model_server_error(self, call):
+        with self.assertRaises(HTTPException) as caught:
+            call()
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertEqual(caught.exception.detail, "model server error")
+
+    def test_non_200_becomes_503(self):
+        self.post.return_value = FakeResponse(401, {"error": "invalid key"})
+        self.assert_model_server_error(lambda: main.gms_post("/chat/completions", {}))
+
+    def test_timeout_and_connection_failure_become_503(self):
+        for failure in (requests.Timeout("slow"), requests.ConnectionError("down")):
+            self.post.side_effect = failure
+            self.assert_model_server_error(lambda: main.gms_post("/chat/completions", {}))
+
+    def test_guardrail_failure_blocks_generation(self):
+        """Guardrail 판단이 실패하면 안전을 위해 생성하지 않고 503 을 돌려준다."""
+        self.post.return_value = FakeResponse(500, {"error": "down"})
+        request = ChatRequest(messages=[{"role": "user", "content": "소설 추천해줘"}])
+
+        self.assert_model_server_error(lambda: main.chat_completions(request))
+        self.assertEqual(self.post.call_count, 1)
+
+    def test_broken_guardrail_answer_blocks_generation(self):
+        self.post.return_value = chat_reply('{"is_appropriate": tr')
+        request = ImageGenerationRequest(prompt="표지")
+
+        self.assert_model_server_error(lambda: main.image_generations(request))
+        self.assertEqual(self.post.call_count, 1)
+
+    def test_empty_answer_becomes_503(self):
+        self.post.side_effect = [json_reply(**GUARD_OK), chat_reply(None)]
+        request = ChatRequest(messages=[{"role": "user", "content": "소설 추천해줘"}])
+
+        self.assert_model_server_error(lambda: main.chat_completions(request))
+
+    def test_model_refusal_is_inappropriate(self):
+        refusal = FakeResponse(200, {"choices": [{"message": {"content": None, "refusal": "거부"}}]})
+        self.post.return_value = refusal
+
+        result = main.chat_guardrail(ChatGuardrailRequest(prompt="부적절한 요청"))
+
+        self.assertEqual(result, {"is_appropriate": False})
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ Django 쪽 테스트. Proxy 서버는 띄우지 않고 requests.post 를 가짜�
 """
 from unittest.mock import patch
 
+import requests
 from django.test import TestCase
 from django.urls import reverse
 
@@ -134,3 +135,32 @@ class ImageGenerationScreenTests(ProxyMockTestCase):
         self.assertTemplateUsed(response, 'recommend/result_image.html')
         self.assertContains(response, 'data:image/jpeg;base64,QUJD')
         self.assertEqual(self.sent(), {'prompt': '등대 표지'})
+
+
+class CommonErrorScreenTests(ProxyMockTestCase):
+    """F706 공통 에러 처리 — 모든 호출 화면이 같은 방식으로 안내한다"""
+    text_views = ('recommend:text', 'recommend:route', 'recommend:image')
+
+    def test_503_shows_retry_notice_with_status_code(self):
+        self.post.return_value = FakeResponse(503, {'detail': 'model server error'})
+        for name in self.text_views:
+            response = self.client.post(reverse(name), {'request_text': '소설 추천해줘'})
+            self.assertEqual(response.status_code, 503)
+            self.assertTemplateUsed(response, 'recommend/error.html')
+            self.assertContains(response, '잠시 후 다시 시도해 주세요', status_code=503)
+            self.assertContains(response, 'Proxy 서버 응답 코드: 503', status_code=503)
+        self.assertEqual(Recommendation.objects.count(), 0)
+
+    def test_500_is_also_error_page(self):
+        self.post.return_value = FakeResponse(500)
+
+        response = self.client.post(reverse('recommend:text'), {'request_text': '소설 추천해줘'})
+
+        self.assertContains(response, 'Proxy 서버 응답 코드: 500', status_code=503)
+
+    def test_proxy_down_or_timeout_shows_notice_instead_of_crash(self):
+        for failure in (requests.ConnectionError('down'), requests.Timeout('slow')):
+            self.post.side_effect = failure
+            response = self.client.post(reverse('recommend:text'), {'request_text': '소설 추천해줘'})
+            self.assertTemplateUsed(response, 'recommend/error.html')
+            self.assertContains(response, 'Proxy 서버에 연결하지 못했습니다', status_code=503)

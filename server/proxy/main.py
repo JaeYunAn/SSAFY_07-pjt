@@ -63,7 +63,22 @@ def ask_gms(messages, model=MODEL_NANO, response_format=None):
         payload["reasoning_effort"] = "minimal"
     # gms_post 는 아래 F706 에 있음 (파이썬은 호출 시점에 함수를 찾으므로 순서는 상관없다)
     response = gms_post("/chat/completions", payload)
-    return response.json()["choices"][0]["message"]["content"]
+    message = response.json()["choices"][0]["message"]
+    if message.get("refusal"):      # 모델이 스스로 답변을 거부하면 부적절한 요청으로 처리한다
+        raise HTTPException(status_code=403, detail="inappropriate request")
+    if not message.get("content"):
+        print("[GMS 응답 없음]", model, response.text[:200])
+        raise model_server_error()
+    return message["content"]
+
+
+def parse_json(answer):
+    """형식을 제한한 답변을 해석합니다. 답변이 잘려 해석할 수 없으면 모델 서버 오류로 처리합니다."""
+    try:
+        return json.loads(answer)
+    except ValueError:
+        print("[GMS 응답 해석 실패]", answer[:200])
+        raise model_server_error()
 
 
 def developer(text):
@@ -128,8 +143,13 @@ GUARDRAIL_PROMPT = """
 def chat_guardrail(request: ChatGuardrailRequest):
     messages = [developer(GUARDRAIL_PROMPT), user(request.prompt)]
     response_format = json_schema_format("guardrail_response", {"is_appropriate": {"type": "boolean"}})
-    result = json.loads(ask_gms(messages, MODEL_NANO, response_format))
-    return {"is_appropriate": result["is_appropriate"]}
+    try:
+        answer = ask_gms(messages, MODEL_NANO, response_format)
+    except HTTPException as error:
+        if error.status_code == 403:    # 모델이 판단 자체를 거부한 경우도 Bool 로 돌려준다
+            return {"is_appropriate": False}
+        raise                           # 판단 실패(503)는 그대로 전달해 요청을 통과시키지 않는다
+    return {"is_appropriate": parse_json(answer)["is_appropriate"]}
 
 
 def ensure_appropriate(prompt):
@@ -156,7 +176,7 @@ def decide_route(request: DecideRouteRequest):
         "route_response",
         {"route": {"type": "string", "enum": ["/chat/completions", "/images/generations"]}},
     )
-    result = json.loads(ask_gms(messages, MODEL_NANO, response_format))
+    result = parse_json(ask_gms(messages, MODEL_NANO, response_format))
     return {"route": result["route"]}
 
 
@@ -177,14 +197,20 @@ def image_generations(request: ImageGenerationRequest):
 
 
 # ---------------------------------------------------------------- F706 공통 에러 처리
+def model_server_error():
+    return HTTPException(status_code=503, detail="model server error")
+
+
 def gms_post(path, payload):
     """GMS 에 POST 요청을 보냅니다. 모든 GMS 호출이 이 함수를 거칩니다."""
-    response = requests.post(GMS_URL + path, headers=HEADERS, json=payload, timeout=120)
-    # TODO [F706]
-    #   1) response.status_code 가 200 이 아니면
-    #      print("[GMS 호출 실패]", path, response.status_code, response.text[:200]) 로 터미널에 남기고
-    #   2) HTTPException(status_code=503, detail="model server error") 을 발생시킨다.
-    #      (F706 전에도 동작은 하지만, GMS 호출이 실패하면 503 대신 500 오류가 난다)
+    try:
+        response = requests.post(GMS_URL + path, headers=HEADERS, json=payload, timeout=120)
+    except requests.RequestException as error:      # 연결 실패, 시간 초과
+        print("[GMS 호출 실패]", path, error)
+        raise model_server_error()
+    if response.status_code != 200:
+        print("[GMS 호출 실패]", path, response.status_code, response.text[:200])
+        raise model_server_error()
     return response
 
 

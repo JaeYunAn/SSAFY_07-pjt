@@ -3,8 +3,8 @@
 
 모든 뷰가 같은 모양입니다.
   1) POST 이면 ModelForm 으로 검증, 아니면 빈 폼을 만들어 입력 화면을 보여줌
-  2) payload 를 만들어 requests.post 로 Proxy 서버(FastAPI)를 호출
-  3) response.status_code 를 확인 (403 → rejected.html, 200 이 아니면 error.html)   ← F706
+  2) payload 를 만들어 call_proxy 로 Proxy 서버(FastAPI)를 호출
+  3) failure_page 로 응답 코드를 확인 (403 → rejected.html, 200 이 아니면 error.html)   ← F706
   4) response.json() 의 값을 객체에 담아 save() 하고 결과 화면을 렌더링
 """
 import base64
@@ -70,6 +70,29 @@ PAGES = {
 }
 
 
+# ---------------------------------------------------------------- F706 공통 에러 처리
+def call_proxy(path, payload):
+    """Proxy 서버(FastAPI)를 호출합니다. 연결 실패나 시간 초과로 응답이 없으면 None 을 돌려줍니다."""
+    try:
+        return requests.post(settings.PROXY_URL + path, json=payload, timeout=180)
+    except requests.RequestException as error:
+        print('[Proxy 호출 실패]', path, error)
+        return None
+
+
+def failure_page(request, page, user_input, response):
+    """호출이 실패했으면 안내 화면을 돌려주고, 성공했으면 None 을 돌려줍니다."""
+    context = {**PAGES[page], 'user_input': user_input}
+    if response is None:
+        return render(request, 'recommend/error.html', context, status=503)
+    if response.status_code == 403:
+        return render(request, 'recommend/rejected.html', context, status=403)
+    if response.status_code != 200:
+        context['status_code'] = response.status_code
+        return render(request, 'recommend/error.html', context, status=503)
+    return None
+
+
 # ---------------------------------------------------------------- 서비스 소개
 def home(request):
     return render(request, 'recommend/home.html', {'title': 'AI 도서 추천 서비스'})
@@ -94,7 +117,7 @@ def recommend_form(request):
     return render(request, 'recommend/input_form.html', context)
 
 
-# ---------------------------------------------------------------- F702 텍스트 추천 (제공, F709 심화 추가)
+# ---------------------------------------------------------------- F702 텍스트 추천 (F709 심화 추가)
 def text_recommend(request):
     if request.method == 'POST':
         form = RecommendationForm(request.POST)
@@ -109,20 +132,17 @@ def text_recommend(request):
                 ],
                 'use_tier_routing': result.use_tier_routing,     # F710
             }
-            response = requests.post(settings.PROXY_URL + '/chat/completions', json=payload, timeout=180)
+            response = call_proxy('/chat/completions', payload)
 
             # 2) 응답 코드를 확인한다 (F706)
-            if response.status_code == 403:
-                context = {**PAGES['text'], 'user_input': result.request_text}
-                return render(request, 'recommend/rejected.html', context, status=403)
-            if response.status_code != 200:
-                context = {**PAGES['text'], 'user_input': result.request_text, 'status_code': response.status_code}
-                return render(request, 'recommend/error.html', context, status=503)
+            failure = failure_page(request, 'text', result.request_text, response)
+            if failure:
+                return failure
 
             # 3) 결과를 객체에 담는다
             data = response.json()
             result.content = data['content']
-            result.model_used = data['model_used']               # F710 (제공)
+            result.model_used = data['model_used']               # F710
 
             # TODO [F709]
             #   1) 위 payload 를 복사해 'use_tier_routing' 대신 'answer': result.content 를 넣는다.
@@ -147,19 +167,17 @@ def text_recommend(request):
     return render(request, 'recommend/input_form.html', context)
 
 
-# ---------------------------------------------------------------- F704 라우트 결정 (제공)
+# ---------------------------------------------------------------- F704 라우트 결정
 def decide_route(request):
     if request.method == 'POST':
         form = RecommendationForm(request.POST)
         if form.is_valid():
             result = form.save(commit=False)
 
-            payload = {'prompt': result.request_text}
-            response = requests.post(settings.PROXY_URL + '/decide-route', json=payload, timeout=180)
-
-            if response.status_code != 200:
-                context = {**PAGES['route'], 'user_input': result.request_text, 'status_code': response.status_code}
-                return render(request, 'recommend/error.html', context, status=503)
+            response = call_proxy('/decide-route', {'prompt': result.request_text})
+            failure = failure_page(request, 'route', result.request_text, response)
+            if failure:
+                return failure
 
             data = response.json()
             result.route = data['route']
@@ -180,22 +198,17 @@ def decide_route(request):
     return render(request, 'recommend/input_form.html', context)
 
 
-# ---------------------------------------------------------------- F705 이미지 생성 (제공, F712 심화 추가)
+# ---------------------------------------------------------------- F705 이미지 생성 (F712 심화 추가)
 def image_recommend(request):
     if request.method == 'POST':
         form = RecommendationForm(request.POST)
         if form.is_valid():
             result = form.save(commit=False)
 
-            payload = {'prompt': result.request_text}
-            response = requests.post(settings.PROXY_URL + '/images/generations', json=payload, timeout=180)
-
-            if response.status_code == 403:
-                context = {**PAGES['image'], 'user_input': result.request_text}
-                return render(request, 'recommend/rejected.html', context, status=403)
-            if response.status_code != 200:
-                context = {**PAGES['image'], 'user_input': result.request_text, 'status_code': response.status_code}
-                return render(request, 'recommend/error.html', context, status=503)
+            response = call_proxy('/images/generations', {'prompt': result.request_text})
+            failure = failure_page(request, 'image', result.request_text, response)
+            if failure:
+                return failure
 
             data = response.json()
             image_base64 = data['image_base64']                  # jpeg 파일의 base64 문자열
@@ -221,7 +234,7 @@ def image_recommend(request):
     return render(request, 'recommend/input_form.html', context)
 
 
-# ---------------------------------------------------------------- F707 이미지 분석 (제공)
+# ---------------------------------------------------------------- F707 이미지 분석
 def image_analysis(request):
     if request.method == 'POST':
         form = ImageAnalysisForm(request.POST, request.FILES)
@@ -233,14 +246,10 @@ def image_analysis(request):
             image_base64 = base64.b64encode(result.image.read()).decode('utf-8')
 
             payload = {'image_base64': image_base64, 'question': result.question}
-            response = requests.post(settings.PROXY_URL + '/images/analysis', json=payload, timeout=180)
-
-            if response.status_code == 403:
-                context = {**PAGES['analyze'], 'user_input': result.question}
-                return render(request, 'recommend/rejected.html', context, status=403)
-            if response.status_code != 200:
-                context = {**PAGES['analyze'], 'user_input': result.question, 'status_code': response.status_code}
-                return render(request, 'recommend/error.html', context, status=503)
+            response = call_proxy('/images/analysis', payload)
+            failure = failure_page(request, 'analyze', result.question, response)
+            if failure:
+                return failure
 
             data = response.json()
             result.content = data['content']
