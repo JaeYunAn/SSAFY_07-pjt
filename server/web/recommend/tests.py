@@ -5,20 +5,27 @@ Django 쪽 테스트. Proxy 서버는 띄우지 않고 requests.post 를 가짜�
 """
 import base64
 import io
+import re
 import shutil
 import tempfile
 from unittest.mock import patch
 
 import requests
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
+from . import urls as recommend_urls
 from .models import ImageAnalysis, Recommendation, Speech
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix='recommend-test-media-')
+TEMPLATE_FILES = [
+    *(settings.BASE_DIR / 'templates').rglob('*.html'),
+    *(settings.BASE_DIR / 'recommend' / 'templates').rglob('*.html'),
+]
 
 
 def tearDownModule():
@@ -53,6 +60,22 @@ class ProxyMockTestCase(TestCase):
 
     def sent(self, index=-1):
         return self.post.call_args_list[index].kwargs['json']
+
+
+class UrlConfigTests(SimpleTestCase):
+    """NF701 URL 구성 — URL 이 바뀌어도 urls.py 한 곳만 고치면 된다"""
+    screens = ('home', 'form', 'text', 'route', 'image', 'analyze', 'flow', 'tts')
+
+    def test_app_name_and_screen_names(self):
+        self.assertEqual(recommend_urls.app_name, 'recommend')
+        for name in self.screens:
+            self.assertTrue(reverse(f'recommend:{name}').startswith('/'))
+
+    def test_templates_do_not_write_paths_directly(self):
+        hardcoded = re.compile(r'''(?:href|action)=["'](?!https?:|data:|\#|\{%)''')
+        for template in TEMPLATE_FILES:
+            with self.subTest(template=template.name):
+                self.assertIsNone(hardcoded.search(template.read_text(encoding='utf-8')))
 
 
 class InputValidationTests(TestCase):
