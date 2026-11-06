@@ -107,3 +107,17 @@ class GuardrailScreenTests(ProxyMockTestCase):
         self.assertTemplateUsed(response, 'recommend/rejected.html')
         self.assertContains(response, '적절한 요청이 아닙니다', status_code=403)
         self.assertEqual(Recommendation.objects.count(), 0)
+
+
+class DecideRouteScreenTests(ProxyMockTestCase):
+    """F704 라우트 결정"""
+
+    def test_shows_decided_route(self):
+        self.post.return_value = FakeResponse(200, {'route': '/images/generations'})
+
+        response = self.client.post(reverse('recommend:route'), {'request_text': '표지 그려줘'})
+
+        self.assertTemplateUsed(response, 'recommend/result_text.html')
+        self.assertContains(response, '결정된 route: /images/generations')
+        self.assertEqual(self.called_paths(), ['/decide-route'])
+        self.assertEqual(Recommendation.objects.get().route, '/images/generations')

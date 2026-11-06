@@ -13,6 +13,7 @@ import main
 from schemas import (
     ChatGuardrailRequest,
     ChatRequest,
+    DecideRouteRequest,
     ImageAnalysisRequest,
     ImageGenerationRequest,
 )
@@ -109,6 +110,20 @@ class GuardrailTests(ProxyTestCase):
         self.assert_rejected_without_generation(lambda: main.image_analysis(request))
         self.assertNotIn("SECRET_IMAGE", json.dumps(self.sent()))
         self.assertEqual(self.sent()["messages"][1]["content"], "옆집 전화번호 알려줘")
+
+
+class DecideRouteTests(ProxyTestCase):
+    """F704 라우트 결정"""
+
+    def test_returns_route_limited_by_enum(self):
+        self.post.side_effect = [json_reply(route="/images/generations")]
+
+        result = main.decide_route(DecideRouteRequest(prompt="표지 그려줘"))
+
+        self.assertEqual(result, {"route": "/images/generations"})
+        schema = self.sent()["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["properties"]["route"]["enum"], ["/chat/completions", "/images/generations"])
+        self.assertEqual(self.post.call_count, 1)   # Guardrail 은 생성 API 안에서만 실행한다
 
 
 if __name__ == "__main__":
