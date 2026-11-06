@@ -14,7 +14,7 @@ import requests
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
@@ -89,6 +89,62 @@ class ApiKeyScreenTests(ProxyMockTestCase):
 
         self.assertNotIn('headers', self.post.call_args.kwargs)
         self.assertIn('/api/v1/decide-route', self.post.call_args.args[0])
+
+
+class CsrfTests(TestCase):
+    """NF703 CSRF 보호"""
+    post_screens = ('form', 'text', 'route', 'image', 'analyze', 'flow', 'tts')
+
+    def setUp(self):
+        self.client = Client(enforce_csrf_checks=True)
+
+    def test_post_without_token_is_forbidden(self):
+        for name in self.post_screens:
+            response = self.client.post(reverse(f'recommend:{name}'), {'request_text': '소설'})
+            self.assertEqual(response.status_code, 403, name)
+        self.assertEqual(Recommendation.objects.count(), 0)
+
+    def test_post_with_token_from_rendered_form_is_accepted(self):
+        page = self.client.get(reverse('recommend:form'))
+        token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode()).group(1)
+
+        response = self.client.post(
+            reverse('recommend:form'),
+            {'request_text': '소설', 'csrfmiddlewaretoken': token},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Recommendation.objects.count(), 1)
+
+    def test_every_post_form_in_templates_has_token(self):
+        forms = re.compile(r'<form\b[^>]*method="post"[^>]*>(.*?)</form>', re.S | re.I)
+        found = 0
+        for template in TEMPLATE_FILES:
+            for body in forms.findall(template.read_text(encoding='utf-8')):
+                found += 1
+                self.assertIn('{% csrf_token %}', body, template.name)
+        self.assertGreaterEqual(found, 3)
+
+
+class TimeoutTests(ProxyMockTestCase):
+    """NF704 호출 시간 제한 — Django → FastAPI 는 180초"""
+
+    def test_every_proxy_call_has_timeout(self):
+        self.post.side_effect = [
+            FakeResponse(200, {'route': '/chat/completions'}),
+            FakeResponse(200, {'content': '답변', 'model_used': 'gpt-5-nano'}),
+            FakeResponse(200, {'content': '답변', 'model_used': 'gpt-5-nano'}),
+            FakeResponse(200, {'score': 90, 'reason': '이유'}),
+            FakeResponse(200, {'audio_data': 'QUJD'}),
+        ]
+
+        self.client.post(reverse('recommend:flow'), {'request_text': '소설'})
+        self.client.post(reverse('recommend:text'), {'request_text': '소설'})
+        self.client.post(reverse('recommend:tts'), {'text': '문장'})
+
+        self.assertEqual(self.post.call_count, 5)
+        for call in self.post.call_args_list:
+            self.assertEqual(call.kwargs['timeout'], 180)
 
 
 class InputValidationTests(TestCase):
