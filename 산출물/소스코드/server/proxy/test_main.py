@@ -25,11 +25,12 @@ from schemas import (
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, body=None, content=b""):
+    def __init__(self, status_code=200, body=None, content=b"", headers=None):
         self.status_code = status_code
         self.body = body
         self.content = content
         self.text = str(body)
+        self.headers = headers or {}
 
     def json(self):
         return self.body
@@ -348,18 +349,45 @@ class ModelTierTests(ProxyTestCase):
 class SpeechTests(ProxyTestCase):
     """F711 TTS 기능 구현"""
 
-    def test_returns_audio_bytes_as_base64(self):
-        self.post.return_value = FakeResponse(200, content=b"mp3-bytes")
+    def speak(self, response):
+        self.post.return_value = response
+        return main.generate_speech(GenerateSpeechRequest(text="데미안을 추천합니다."))
 
-        result = main.generate_speech(GenerateSpeechRequest(text="데미안을 추천합니다."))
+    def test_joins_sse_audio_pieces_into_base64(self):
+        def event(piece):
+            return "data: " + json.dumps({"type": "speech.audio.delta", "audio": base64.b64encode(piece).decode()})
+
+        body = "\n\n".join([
+            event(b"mp3-"),
+            event(b"bytes"),
+            'data: {"type": "speech.audio.done", "usage": {"total_tokens": 10}}',
+            "data: [DONE]",
+        ])
+
+        result = self.speak(FakeResponse(
+            200, content=body.encode(), headers={"content-type": "text/event-stream; charset=utf-8"},
+        ))
 
         self.assertEqual(result["audio_data"], base64.b64encode(b"mp3-bytes").decode())
         self.assertTrue(self.called_url().endswith("/audio/speech"))
-        self.assertEqual(
-            self.sent(),
-            {"model": "gpt-4o-mini-tts", "input": "데미안을 추천합니다.", "voice": "nova", "response_format": "mp3"},
-        )
+        self.assertEqual(self.sent(), {
+            "model": "gpt-4o-mini-tts",
+            "input": "데미안을 추천합니다.",
+            "voice": "nova",
+            "response_format": "mp3",
+            "stream_format": "sse",
+        })
         self.assertEqual(self.post.call_count, 1)   # Guardrail 대상이 아니다
+
+    def test_plain_audio_response_also_works(self):
+        result = self.speak(FakeResponse(200, content=b"mp3-bytes", headers={"content-type": "audio/mpeg"}))
+
+        self.assertEqual(result["audio_data"], base64.b64encode(b"mp3-bytes").decode())
+
+    def test_sse_without_audio_becomes_503(self):
+        with self.assertRaises(HTTPException) as caught:
+            self.speak(FakeResponse(200, content=b"data: [DONE]", headers={"content-type": "text/event-stream"}))
+        self.assertEqual(caught.exception.status_code, 503)
 
     def test_failure_becomes_503(self):
         self.post.return_value = FakeResponse(500, {"error": "down"})
