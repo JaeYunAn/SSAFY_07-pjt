@@ -286,7 +286,28 @@ def decide_model_tier(prompt):
 # ---------------------------------------------------------------- F711 TTS (심화)
 @app.post("/api/v1/generate-speech", response_model=GenerateSpeechResponse)
 def generate_speech(request: GenerateSpeechRequest):
-    payload = {"model": MODEL_TTS, "input": request.text, "voice": "nova", "response_format": "mp3"}
+    payload = {
+        "model": MODEL_TTS,
+        "input": request.text,
+        "voice": "nova",
+        "response_format": "mp3",
+        # GMS 는 오디오를 그대로 전송하면 약 130KB(한글 50자 안팎)에서 멈춘다. (curl 로도 같은 지점에서 멈춤)
+        # SSE 로 받으면 끝까지 전송된다.
+        "stream_format": "sse",
+    }
     response = gms_post("/audio/speech", payload)
-    # 응답은 JSON 이 아니라 오디오 바이트이므로 content 를 base64 문자열로 바꿔 전달한다
-    return {"audio_data": base64.b64encode(response.content).decode("utf-8")}
+    return {"audio_data": base64.b64encode(read_speech(response)).decode("utf-8")}
+
+
+def read_speech(response):
+    """응답에서 오디오 바이트를 꺼냅니다. SSE 응답이면 speech.audio.delta 조각을 이어 붙입니다."""
+    if not response.headers.get("content-type", "").startswith("text/event-stream"):
+        return response.content
+    pieces = []
+    for line in response.content.decode("utf-8").splitlines():
+        if line.startswith("data:") and "speech.audio.delta" in line:
+            pieces.append(base64.b64decode(json.loads(line[5:])["audio"]))
+    if not pieces:
+        print("[GMS 응답 없음] /audio/speech", response.text[:200])
+        raise model_server_error()
+    return b"".join(pieces)
