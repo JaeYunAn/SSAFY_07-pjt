@@ -3,7 +3,13 @@ from .models import Recommendation, ImageAnalysis, Speech
 
 
 class ImageAnalysisForm(forms.ModelForm):
-    image = forms.ImageField(label='책 표지 사진 (png/jpg)')
+    ALLOWED_TYPES = ('image/png', 'image/jpeg')
+    MAX_SIZE = 10 * 1024 * 1024     # 10MB
+
+    image = forms.ImageField(
+        label='책 표지 사진 (png/jpg)',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/png,image/jpeg'}),
+    )
     question = forms.CharField(
         label='질문',
         max_length=300,
@@ -13,6 +19,15 @@ class ImageAnalysisForm(forms.ModelForm):
     class Meta:
         model = ImageAnalysis
         fields = ['image', 'question']
+
+    def clean_image(self):
+        image = self.cleaned_data['image']
+        # content_type 은 브라우저가 보낸 값이 아니라 Pillow 가 파일 내용으로 확인한 값이다
+        if image.content_type not in self.ALLOWED_TYPES:
+            raise forms.ValidationError('PNG 또는 JPG 사진만 올릴 수 있습니다.')
+        if image.size > self.MAX_SIZE:
+            raise forms.ValidationError('10MB 이하의 사진만 올릴 수 있습니다.')
+        return image
 
 
 class SpeechForm(forms.ModelForm):

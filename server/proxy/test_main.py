@@ -197,5 +197,24 @@ class CommonErrorTests(ProxyTestCase):
         self.assertEqual(result, {"is_appropriate": False})
 
 
+class ImageAnalysisTests(ProxyTestCase):
+    """F707 이미지 분석 구현"""
+
+    def test_sends_image_and_question_together(self):
+        self.post.side_effect = [json_reply(**GUARD_OK), chat_reply("장르는 해양 소설입니다.")]
+        request = ImageAnalysisRequest(image_base64="QUJD", question="어떤 책일까?", mime_type="image/jpeg")
+
+        result = main.image_analysis(request)
+
+        self.assertEqual(result, {"content": "장르는 해양 소설입니다."})
+        sent = self.sent()
+        self.assertEqual(sent["model"], "gpt-5-nano")
+        self.assertEqual(sent["messages"][0]["role"], "developer")
+        self.assertIn("표지", sent["messages"][0]["content"])
+        image_part, text_part = sent["messages"][1]["content"]
+        self.assertEqual(image_part, {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,QUJD"}})
+        self.assertEqual(text_part, {"type": "text", "text": "어떤 책일까?"})
+
+
 if __name__ == "__main__":
     unittest.main()

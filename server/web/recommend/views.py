@@ -239,21 +239,25 @@ def image_analysis(request):
     if request.method == 'POST':
         form = ImageAnalysisForm(request.POST, request.FILES)
         if form.is_valid():
-            result = form.save()                       # 업로드된 사진이 media/uploads/ 에 저장됨
+            result = form.save(commit=False)
 
             # 업로드된 파일을 base64 문자열로 바꾼다
-            result.image.open('rb')
-            image_base64 = base64.b64encode(result.image.read()).decode('utf-8')
+            upload = form.cleaned_data['image']
+            image_base64 = base64.b64encode(upload.read()).decode('utf-8')
 
-            payload = {'image_base64': image_base64, 'question': result.question}
+            payload = {
+                'image_base64': image_base64,
+                'question': result.question,
+                'mime_type': upload.content_type,       # Pillow 가 파일 내용으로 확인한 형식
+            }
             response = call_proxy('/images/analysis', payload)
             failure = failure_page(request, 'analyze', result.question, response)
             if failure:
-                return failure
+                return failure      # 거절되거나 실패한 요청의 사진은 저장하지 않는다
 
             data = response.json()
             result.content = data['content']
-            result.save()
+            result.save()           # 이때 사진이 media/uploads/ 에 저장된다
             context = {
                 **PAGES['analyze'],
                 'user_input': result.question,

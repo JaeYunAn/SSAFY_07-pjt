@@ -3,13 +3,31 @@ Django 쪽 테스트. Proxy 서버는 띄우지 않고 requests.post 를 가짜�
 
 실행: server/web 폴더에서 python manage.py test
 """
+import base64
+import io
+import shutil
+import tempfile
 from unittest.mock import patch
 
 import requests
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
-from .models import Recommendation
+from .models import ImageAnalysis, Recommendation
+
+TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix='recommend-test-media-')
+
+
+def tearDownModule():
+    shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+
+def image_file(name='cover.png', image_format='PNG'):
+    buffer = io.BytesIO()
+    Image.new('RGB', (4, 4), 'navy').save(buffer, image_format)
+    return SimpleUploadedFile(name, buffer.getvalue())
 
 
 class FakeResponse:
@@ -164,3 +182,54 @@ class CommonErrorScreenTests(ProxyMockTestCase):
             response = self.client.post(reverse('recommend:text'), {'request_text': '소설 추천해줘'})
             self.assertTemplateUsed(response, 'recommend/error.html')
             self.assertContains(response, 'Proxy 서버에 연결하지 못했습니다', status_code=503)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class ImageAnalysisScreenTests(ProxyMockTestCase):
+    """F707 이미지 분석 구현"""
+
+    def post_cover(self, cover, question='어떤 책일까?'):
+        return self.client.post(reverse('recommend:analyze'), {'image': cover, 'question': question})
+
+    def test_sends_base64_and_shows_result(self):
+        self.post.return_value = FakeResponse(200, {'content': '해양 소설로 보입니다.'})
+        cover = image_file('cover.jpg', 'JPEG')
+        original = cover.read()
+        cover.seek(0)
+
+        response = self.post_cover(cover)
+
+        self.assertTemplateUsed(response, 'recommend/result_text.html')
+        self.assertContains(response, '해양 소설로 보입니다.')
+        sent = self.sent()
+        self.assertEqual(base64.b64decode(sent['image_base64']), original)
+        self.assertEqual(sent['mime_type'], 'image/jpeg')
+        self.assertEqual(sent['question'], '어떤 책일까?')
+        saved = ImageAnalysis.objects.get()
+        self.assertEqual(saved.content, '해양 소설로 보입니다.')
+        self.assertEqual(saved.image.read(), original)
+        self.assertContains(response, saved.image.url)
+
+    def test_rejected_upload_is_not_kept(self):
+        self.post.return_value = FakeResponse(403)
+
+        response = self.post_cover(image_file())
+
+        self.assertTemplateUsed(response, 'recommend/rejected.html')
+        self.assertEqual(ImageAnalysis.objects.count(), 0)
+
+    def test_non_image_and_unsupported_format_are_blocked_before_proxy(self):
+        not_image = SimpleUploadedFile('cover.png', b'this is not an image')
+        response = self.post_cover(not_image)
+        self.assertTrue(response.context['form'].errors['image'])
+
+        response = self.post_cover(image_file('cover.gif', 'GIF'))
+        self.assertIn('PNG 또는 JPG', response.context['form'].errors['image'][0])
+
+        self.post.assert_not_called()
+
+    def test_missing_file_shows_error(self):
+        response = self.client.post(reverse('recommend:analyze'), {'question': '어떤 책일까?'})
+
+        self.assertTemplateUsed(response, 'recommend/upload_form.html')
+        self.assertContains(response, '필수 항목입니다')

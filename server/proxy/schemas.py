@@ -44,6 +44,7 @@ class ImageGenerationResponse(BaseModel):
 class ImageAnalysisRequest(BaseModel):
     image_base64: str               # /docs 에서는 직접 넣기 어려우므로 웹 화면(F707)에서 확인
     question: str
+    mime_type: str = "image/png"    # data URI 에 쓰는 이미지 형식 (jpg 업로드면 image/jpeg)
 
 
 class ImageAnalysisResponse(BaseModel):

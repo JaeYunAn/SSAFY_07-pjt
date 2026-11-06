@@ -216,8 +216,10 @@ def gms_post(path, payload):
 
 # ---------------------------------------------------------------- F707 이미지 분석 (+F703)
 ANALYSIS_PROMPT = """
-(이 문장을 지우고 지시문을 쓴다) TODO [F707]
-- 책 표지 사진을 보고 제목·장르를 추정하고 비슷한 도서를 2~3권 추천하도록 작성한다.
+너는 책 표지를 읽어 주는 도서 전문가이다. 사용자가 올린 책 표지 사진을 보고 한국어로 답한다.
+1) 표지의 글자와 그림을 근거로 제목과 장르를 추정한다. 글자를 읽을 수 없으면 분위기로 추정하고, 추정임을 밝힌다.
+2) 비슷한 도서를 2~3권 추천하고, 각 책의 제목, 저자, 비슷한 이유를 한 문장씩 쓴다. 실제로 출간된 책만 추천한다.
+사용자의 질문이 함께 오면 그 질문에도 답한다. 화면에 그대로 표시되므로 마크다운 기호(*, #)는 쓰지 않는다.
 """
 
 
@@ -225,15 +227,13 @@ ANALYSIS_PROMPT = """
 def image_analysis(request: ImageAnalysisRequest):
     ensure_appropriate(request.question)    # F703: 질문 텍스트만 검사한다 (이미지는 보내지 않음)
 
-    # TODO [F707]
-    #   1) image_url = "data:image/png;base64," + request.image_base64
-    #   2) user 메시지의 content 를 리스트로 만든다.
-    #      [{"type": "image_url", "image_url": {"url": image_url}},
-    #      {"type": "text", "text": request.question}]
-    #   3) messages = [developer(ANALYSIS_PROMPT), 위 user 메시지] 로
-    #      content = ask_gms(messages, MODEL_NANO) 를 호출한다.
-    #   4) {"content": content} 를 반환한다.
-    pass
+    image_url = f"data:{request.mime_type};base64,{request.image_base64}"
+    question = user([
+        {"type": "image_url", "image_url": {"url": image_url}},
+        {"type": "text", "text": request.question},
+    ])
+    content = ask_gms([developer(ANALYSIS_PROMPT), question], MODEL_NANO)
+    return {"content": content}
 
 
 # ---------------------------------------------------------------- F709 텍스트 응답 점수 계산 (심화)

@@ -3,7 +3,7 @@
 <div class="page">
   {% include 'recommend/_page_head.html' %}
   <section class="stage">
-    <form class="card" method="post" enctype="multipart/form-data" data-busy="표지를 읽고 비슷한 책을 찾고 있습니다." novalidate>
+    <form class="card" method="post" enctype="multipart/form-data" data-busy="표지를 읽고 비슷한 책을 찾고 있습니다. 30초 정도 걸릴 수 있습니다." novalidate>
       {% csrf_token %}
       {% include 'recommend/_form_fields.html' %}
       <div class="composer-actions">

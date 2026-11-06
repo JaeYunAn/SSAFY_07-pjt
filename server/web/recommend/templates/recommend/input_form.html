@@ -3,7 +3,7 @@
 <div class="page">
   {% include 'recommend/_page_head.html' %}
   <section class="stage">
-    <form class="card" method="post" data-busy="{% if costly %}이미지는 10초 넘게 걸릴 수 있습니다.{% else %}보통 몇 초 안에 끝납니다.{% endif %}" novalidate>
+    <form class="card" method="post" data-busy="{% if costly %}이미지를 그릴 때는 1분 가까이 걸릴 수 있습니다.{% else %}30초 정도 걸릴 수 있습니다.{% endif %}" novalidate>
       {% csrf_token %}
       {% include 'recommend/_form_fields.html' %}
       <div class="composer-actions">
