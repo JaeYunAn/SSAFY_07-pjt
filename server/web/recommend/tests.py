@@ -96,7 +96,10 @@ class TextRecommendTests(ProxyMockTestCase):
     """F702 텍스트 추천 생성"""
 
     def test_shows_and_saves_recommendation(self):
-        self.post.return_value = FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'})
+        self.post.side_effect = [
+            FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'}),
+            FakeResponse(503),      # 점수 계산(F709)은 이 테스트의 관심사가 아니다
+        ]
 
         response = self.client.post(reverse('recommend:text'), {'request_text': '성장 소설 추천해줘'})
 
@@ -139,6 +142,28 @@ class ScoreScreenTests(ProxyMockTestCase):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, '데미안을 추천합니다.')
             self.assertNotContains(response, '답변 점수')
+
+
+class ModelTierScreenTests(ProxyMockTestCase):
+    """F710 모델 등급 라우팅 — 체크박스 값 전달과 사용된 모델명 표시"""
+
+    def recommend(self, **fields):
+        self.post.side_effect = [
+            FakeResponse(200, {'content': '답변', 'model_used': 'gpt-5-mini'}),
+            FakeResponse(503),
+        ]
+        return self.client.post(reverse('recommend:text'), {'request_text': '에세이 추천', **fields})
+
+    def test_checked_box_turns_on_routing_and_shows_model(self):
+        response = self.recommend(use_tier_routing='on')
+
+        self.assertIs(self.sent(0)['use_tier_routing'], True)
+        self.assertContains(response, 'gpt-5-mini')
+
+    def test_unchecked_box_keeps_routing_off(self):
+        self.recommend()
+
+        self.assertIs(self.sent(0)['use_tier_routing'], False)
 
 
 class GuardrailScreenTests(ProxyMockTestCase):

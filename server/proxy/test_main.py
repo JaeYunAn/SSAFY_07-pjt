@@ -251,5 +251,36 @@ class ScoreTests(ProxyTestCase):
         self.assertEqual(self.score(score=-5, reason="이유")["score"], 0)
 
 
+class ModelTierTests(ProxyTestCase):
+    """F710 모델 등급 라우팅"""
+    messages = [{"role": "user", "content": "비 오는 날 읽기 좋은, 위로가 되는 에세이"}]
+
+    def recommend(self, *replies, use_tier_routing=True):
+        self.post.side_effect = [json_reply(**GUARD_OK), *replies, chat_reply("추천 답변")]
+        request = ChatRequest(messages=self.messages, use_tier_routing=use_tier_routing)
+        return main.chat_completions(request)
+
+    def test_complex_request_uses_mini(self):
+        result = self.recommend(json_reply(tier="complex"))
+
+        self.assertEqual(result["model_used"], "gpt-5-mini")
+        self.assertEqual(self.sent(-1)["model"], "gpt-5-mini")
+        self.assertEqual(self.sent(1)["model"], "gpt-5-nano")   # 판단 자체는 nano 가 맡는다
+        tier = self.sent(1)["response_format"]["json_schema"]["schema"]["properties"]["tier"]
+        self.assertEqual(tier["enum"], ["simple", "complex"])
+
+    def test_simple_request_uses_nano(self):
+        result = self.recommend(json_reply(tier="simple"))
+
+        self.assertEqual(result["model_used"], "gpt-5-nano")
+        self.assertEqual(self.sent(-1)["model"], "gpt-5-nano")
+
+    def test_routing_off_skips_tier_decision(self):
+        result = self.recommend(use_tier_routing=False)
+
+        self.assertEqual(result["model_used"], "gpt-5-nano")
+        self.assertEqual(self.post.call_count, 2)   # Guardrail + 생성
+
+
 if __name__ == "__main__":
     unittest.main()
