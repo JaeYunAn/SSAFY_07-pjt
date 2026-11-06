@@ -1,0 +1,64 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title|default:"AI 도서 추천 서비스" }}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d1d1f'/%3E%3Cpath d='M10 7h10a3 3 0 0 1 3 3v15H12a2 2 0 0 1-2-2z' fill='%23f5f5f7'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="{% static 'recommend/app.css' %}">
+  <script defer src="{% static 'recommend/app.js' %}"></script>
+  {% block css %}{% endblock css %}
+</head>
+<body>
+  <a class="skip" href="#main">본문으로 건너뛰기</a>
+
+  {% with current=request.resolver_match.url_name %}
+  <nav class="gnav" aria-label="주요 메뉴">
+    <div class="gnav-inner">
+      <a class="gnav-brand" href="{% url 'recommend:home' %}">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 2.5A1.5 1.5 0 0 1 4.5 1H13v11H4.5a1.5 1.5 0 0 0-1.3.75V2.5zM4.5 13H13v2H4.5a1 1 0 1 1 0-2z"/></svg>
+        AI 도서 추천
+      </a>
+      <input class="gnav-toggle" type="checkbox" id="gnav-toggle" aria-label="메뉴 열기">
+      <label class="gnav-burger" for="gnav-toggle" aria-hidden="true"><span></span><span></span></label>
+      <ul class="gnav-links">
+        <li><a href="{% url 'recommend:form' %}"{% if current == 'form' %} aria-current="page"{% endif %}>입력검증</a></li>
+        <li><a href="{% url 'recommend:text' %}"{% if current == 'text' %} aria-current="page"{% endif %}>텍스트추천</a></li>
+        <li><a href="{% url 'recommend:route' %}"{% if current == 'route' %} aria-current="page"{% endif %}>라우트</a></li>
+        <li><a href="{% url 'recommend:image' %}"{% if current == 'image' %} aria-current="page"{% endif %}>이미지</a></li>
+        <li><a href="{% url 'recommend:analyze' %}"{% if current == 'analyze' %} aria-current="page"{% endif %}>이미지분석</a></li>
+        <li><a href="{% url 'recommend:flow' %}"{% if current == 'flow' %} aria-current="page"{% endif %}>흐름제어</a></li>
+        <li><a href="{% url 'recommend:tts' %}"{% if current == 'tts' %} aria-current="page"{% endif %}>TTS</a></li>
+      </ul>
+    </div>
+  </nav>
+  {% endwith %}
+
+  <main id="main">
+    {% block content %}{% endblock content %}
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-notes">
+        <p>AI 응답은 실행할 때마다 달라질 수 있으며, 추천된 도서의 제목과 저자가 실제와 다를 수 있습니다.</p>
+        <p>브라우저는 Django 서비스만 호출하며, 모델 호출과 API Key 는 FastAPI Proxy 서버가 맡습니다.</p>
+      </div>
+      <ul class="footer-links">
+        <li><a href="{% url 'recommend:home' %}">홈</a></li>
+        <li><a href="{% url 'recommend:flow' %}">추천 받기</a></li>
+        <li><a href="{% url 'recommend:analyze' %}">표지 분석</a></li>
+        <li><a href="{% url 'recommend:tts' %}">음성 듣기</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <div class="busy" id="busy" role="status" aria-live="polite" hidden>
+    <div class="busy-spinner" aria-hidden="true"></div>
+    <p class="busy-title">AI가 답변을 만들고 있어요</p>
+    <p class="busy-note"></p>
+  </div>
+</body>
+</html>

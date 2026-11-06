@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="home-band">
+
+  <section class="hero hero--dark is-dark">
+    <h1 class="headline">다음 한 권, AI에게.</h1>
+    <p class="lead lead--spectrum">추천하고, 그리고, 읽고, 들려줍니다.</p>
+    <div class="pills">
+      <a class="pill pill--primary" href="{% url 'recommend:flow' %}">추천 받기</a>
+      <a class="pill pill--ghost" href="{% url 'recommend:analyze' %}">표지 분석하기</a>
+    </div>
+    <div class="shelf" aria-hidden="true">
+      <span class="bk bk-1"></span><span class="bk bk-2"></span><span class="bk bk-3"></span><span class="bk bk-4"></span><span class="bk bk-5"></span><span class="bk bk-6"></span><span class="bk bk-7"></span>
+    </div>
+  </section>
+
+  <section class="hero hero--light">
+    <h2 class="headline">취향을 말하면, 책이 답합니다.</h2>
+    <p class="lead">쉬운 요청은 가볍게, 어려운 요청은 더 똑똑한 모델로.</p>
+    <div class="pills">
+      <a class="pill pill--primary" href="{% url 'recommend:text' %}">텍스트 추천</a>
+    </div>
+    <div class="preview" aria-hidden="true">
+      <p class="bubble">출퇴근길에 가볍게 읽을 성장 소설 추천해줘</p>
+      <div class="preview-lines">
+        <span class="preview-line"></span>
+        <span class="preview-line"></span>
+        <span class="preview-line"></span>
+        <span class="preview-line"></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="tiles">
+    <a class="tile tile--dark is-dark" href="{% url 'recommend:image' %}">
+      <h2 class="tile-name">표지 생성</h2>
+      <p class="tile-copy">상상한 표지를 그대로.</p>
+      <span class="more">그려 보기</span>
+      <div class="tile-art" aria-hidden="true"><div class="art-cover"></div></div>
+    </a>
+
+    <a class="tile tile--light" href="{% url 'recommend:analyze' %}">
+      <h2 class="tile-name">표지 분석</h2>
+      <p class="tile-copy">표지만 보여 주세요. 비슷한 책까지 찾아 드립니다.</p>
+      <span class="more">사진 올리기</span>
+      <div class="tile-art" aria-hidden="true"><div class="art-scan"><i></i></div></div>
+    </a>
+
+    <a class="tile tile--light" href="{% url 'recommend:route' %}">
+      <h2 class="tile-name">라우트 결정</h2>
+      <p class="tile-copy">요청을 읽고, 길을 고릅니다.</p>
+      <span class="more">확인해 보기</span>
+      <div class="tile-art" aria-hidden="true">
+        <div class="art-route">
+          <code class="is-on">/chat/completions</code>
+          <code>/images/generations</code>
+        </div>
+      </div>
+    </a>
+
+    <a class="tile tile--dark is-dark" href="{% url 'recommend:tts' %}">
+      <h2 class="tile-name">음성으로 듣기</h2>
+      <p class="tile-copy">추천을 귀로 듣는 시간.</p>
+      <span class="more">들어 보기</span>
+      <div class="tile-art" aria-hidden="true">
+        <div class="art-wave">
+          <i style="--i:0;--v:40%"></i><i style="--i:1;--v:66%"></i><i style="--i:2;--v:92%"></i><i style="--i:3;--v:58%"></i><i style="--i:4;--v:78%"></i><i style="--i:5;--v:100%"></i><i style="--i:6;--v:70%"></i><i style="--i:7;--v:44%"></i><i style="--i:8;--v:84%"></i><i style="--i:9;--v:60%"></i><i style="--i:10;--v:96%"></i><i style="--i:11;--v:52%"></i><i style="--i:12;--v:34%"></i>
+        </div>
+      </div>
+    </a>
+
+    <a class="tile tile--dark is-dark" href="{% url 'recommend:form' %}">
+      <h2 class="tile-name">입력 검증</h2>
+      <p class="tile-copy">300자 안에, 정확하게.</p>
+      <span class="more">입력해 보기</span>
+      <div class="tile-art" aria-hidden="true"><div class="art-count">300</div></div>
+    </a>
+
+    <a class="tile tile--light" href="{% url 'recommend:flow' %}">
+      <h2 class="tile-name">Guardrail</h2>
+      <p class="tile-copy">부적절한 요청은 생성 전에 먼저 걸러 냅니다.</p>
+      <span class="more">흐름 제어 보기</span>
+      <div class="tile-art" aria-hidden="true">
+        <svg class="art-shield" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M32 6l20 7v15c0 13-8 24-20 30C20 52 12 41 12 28V13z"/>
+          <path d="M23 32l7 7 12-14"/>
+        </svg>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock content %}

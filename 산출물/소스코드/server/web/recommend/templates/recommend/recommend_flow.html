@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+{% if image_base64 %}
+<section class="showcase is-dark">
+  <p class="eyebrow">{{ title }}</p>
+  <h1 class="headline">{{ result_headline }}</h1>
+  <img class="showcase-image" src="data:image/jpeg;base64,{{ image_base64 }}" alt="생성된 표지 이미지">
+</section>
+{% endif %}
+
+<div class="page{% if image_base64 %} page--tail{% endif %}">
+  {% if not image_base64 %}
+  <header class="page-head">
+    <p class="eyebrow">{{ title }}</p>
+    <h1 class="headline">{{ result_headline }}</h1>
+  </header>
+  {% endif %}
+
+  <section class="stage{% if image_base64 %} stage--under{% endif %}">
+    <ol class="flowline" aria-label="처리 순서">
+      <li>입력 검증</li>
+      <li>라우트 결정 <code>{{ result.route }}</code></li>
+      <li>Guardrail 통과</li>
+      <li><b>결과 표시</b></li>
+    </ol>
+
+    <div class="bubble-row"><p class="bubble">{{ result.request_text }}</p></div>
+
+    {% if not image_base64 %}
+      <article class="card answer">{{ result.content }}</article>
+      {% if result.model_used %}<span class="chip">사용된 모델 <b>{{ result.model_used }}</b></span>{% endif %}
+    {% endif %}
+
+    <a class="back" href="{% url 'recommend:flow' %}">다시 입력</a>
+  </section>
+</div>
+{% endblock content %}

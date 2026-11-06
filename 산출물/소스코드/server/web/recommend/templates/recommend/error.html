@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page">
+  <section class="notice-page">
+    <svg class="notice-icon notice-icon--error" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="32" cy="32" r="26"/>
+      <path d="M32 18v18"/>
+      <path d="M32 45v.5"/>
+    </svg>
+    <h1 class="headline">잠시 후 다시 시도해 주세요.</h1>
+    <p class="lead">일시적인 오류로 요청을 처리하지 못했습니다.</p>
+    <p class="notice-detail">
+      {% if status_code %}Proxy 서버 응답 코드: {{ status_code }} — FastAPI 를 실행한 터미널의 로그를 확인하세요.
+      {% else %}Proxy 서버에 연결하지 못했습니다 — FastAPI 서버가 실행 중인지 확인하세요.{% endif %}
+    </p>
+  </section>
+
+  <section class="stage">
+    <div class="bubble-row"><p class="bubble">{{ user_input }}</p></div>
+    <a class="back" href="{% url request.resolver_match.view_name %}">다시 입력</a>
+  </section>
+</div>
+{% endblock content %}

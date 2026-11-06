@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <p class="eyebrow">{{ title }}</p>
+    <h1 class="headline">{{ result_headline }}</h1>
+  </header>
+
+  <section class="stage">
+    <div class="bubble-row"><p class="bubble">{{ result.text }}</p></div>
+    <article class="card">
+      <audio controls src="data:audio/mp3;base64,{{ audio_data }}"></audio>
+      <p class="note">오디오는 파일로 저장하지 않고 이 페이지 안에 직접 담겨 있습니다. (data URI)</p>
+    </article>
+    <a class="back" href="{% url 'recommend:tts' %}">다시 입력</a>
+  </section>
+</div>
+{% endblock content %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page">
+  {% include 'recommend/_page_head.html' %}
+  <section class="stage">
+    <form class="card" method="post" data-busy="{% if costly %}이미지를 그릴 때는 1분 가까이 걸릴 수 있습니다.{% else %}30초 정도 걸릴 수 있습니다.{% endif %}" novalidate>
+      {% csrf_token %}
+      {% include 'recommend/_form_fields.html' %}
+      <div class="composer-actions">
+        <button class="pill pill--primary" type="submit">요청 보내기</button>
+      </div>
+      {% if costly %}<p class="note">이미지 생성은 토큰을 많이 사용합니다. 결과 확인용으로 한 번만 호출하고, 반복 호출은 피해 주세요.</p>{% endif %}
+    </form>
+
+    {% if saved %}
+    <article class="card success">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-7"/></svg>
+      <div>
+        <h2 class="card-title">입력 검증을 통과했습니다.</h2>
+        <p class="note" style="text-align:left;margin-top:2px">저장된 번호: {{ saved.pk }}</p>
+        <p class="success-body">{{ saved.request_text }}</p>
+      </div>
+    </article>
+    {% endif %}
+  </section>
+</div>
+{% endblock content %}
