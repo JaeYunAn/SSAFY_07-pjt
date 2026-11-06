@@ -121,3 +121,16 @@ class DecideRouteScreenTests(ProxyMockTestCase):
         self.assertContains(response, '결정된 route: /images/generations')
         self.assertEqual(self.called_paths(), ['/decide-route'])
         self.assertEqual(Recommendation.objects.get().route, '/images/generations')
+
+
+class ImageGenerationScreenTests(ProxyMockTestCase):
+    """F705 이미지 생성 API"""
+
+    def test_shows_image_as_data_uri(self):
+        self.post.return_value = FakeResponse(200, {'image_base64': 'QUJD'})
+
+        response = self.client.post(reverse('recommend:image'), {'request_text': '등대 표지'})
+
+        self.assertTemplateUsed(response, 'recommend/result_image.html')
+        self.assertContains(response, 'data:image/jpeg;base64,QUJD')
+        self.assertEqual(self.sent(), {'prompt': '등대 표지'})

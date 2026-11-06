@@ -126,5 +126,27 @@ class DecideRouteTests(ProxyTestCase):
         self.assertEqual(self.post.call_count, 1)   # Guardrail 은 생성 API 안에서만 실행한다
 
 
+class ImageGenerationTests(ProxyTestCase):
+    """F705 이미지 생성 API"""
+
+    def test_returns_base64_after_guardrail(self):
+        self.post.side_effect = [
+            json_reply(**GUARD_OK),
+            FakeResponse(200, {"data": [{"b64_json": "QUJD"}]}),
+        ]
+
+        result = main.image_generations(ImageGenerationRequest(prompt="등대 표지"))
+
+        self.assertEqual(result, {"image_base64": "QUJD"})
+        self.assertTrue(self.called_url().endswith("/images/generations"))
+        sent = self.sent()
+        self.assertEqual(sent["model"], "gpt-image-1-mini")
+        self.assertIn("등대 표지", sent["prompt"])
+        self.assertEqual(
+            (sent["size"], sent["quality"], sent["output_format"]),
+            ("1024x1024", "low", "jpeg"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

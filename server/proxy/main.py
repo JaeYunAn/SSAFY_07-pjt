@@ -165,13 +165,15 @@ def decide_route(request: DecideRouteRequest):
 def image_generations(request: ImageGenerationRequest):
     ensure_appropriate(request.prompt)  # F703
 
-    # TODO [F705]
-    #   1) payload = {"model": MODEL_IMAGE, "prompt": request.prompt, "size": "1024x1024",
-    #                 "quality": "low", "output_format": "jpeg"}   (quality·output_format 은 토큰·파일 크기 절약)
-    #   2) response = gms_post("/images/generations", payload) 를 호출하고
-    #      image_base64 = response.json()["data"][0]["b64_json"] 을 꺼낸다. (이미지가 base64 문자열로 바로 온다)
-    #   3) {"image_base64": image_base64} 를 반환한다.
-    pass
+    payload = {
+        "model": MODEL_IMAGE,
+        "prompt": f"책 표지 이미지를 만들어 주세요. 요청: {request.prompt}",
+        "size": "1024x1024",
+        "quality": "low",           # quality, output_format 은 토큰과 파일 크기를 줄이는 옵션
+        "output_format": "jpeg",
+    }
+    response = gms_post("/images/generations", payload)
+    return {"image_base64": response.json()["data"][0]["b64_json"]}
 
 
 # ---------------------------------------------------------------- F706 공통 에러 처리
