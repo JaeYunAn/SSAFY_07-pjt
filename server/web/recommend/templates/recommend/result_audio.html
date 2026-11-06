@@ -9,7 +9,7 @@
   <section class="stage">
     <div class="bubble-row"><p class="bubble">{{ result.text }}</p></div>
     <article class="card">
-      {# TODO [F711] <audio controls src="data:audio/mp3;base64,{{ audio_data }}"></audio> 를 넣는다. #}
+      <audio controls src="data:audio/mp3;base64,{{ audio_data }}"></audio>
       <p class="note">오디오는 파일로 저장하지 않고 이 페이지 안에 직접 담겨 있습니다. (data URI)</p>
     </article>
     <a class="back" href="{% url 'recommend:tts' %}">다시 입력</a>

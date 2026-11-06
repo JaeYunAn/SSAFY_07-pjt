@@ -15,7 +15,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import ImageAnalysis, Recommendation
+from .models import ImageAnalysis, Recommendation, Speech
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix='recommend-test-media-')
 
@@ -299,6 +299,52 @@ class RecommendFlowTests(ProxyMockTestCase):
 
         self.assertTemplateUsed(response, 'recommend/input_form.html')
         self.post.assert_not_called()
+
+
+class SpeechScreenTests(ProxyMockTestCase):
+    """F711 TTS 기능 구현"""
+
+    def test_get_shows_form(self):
+        response = self.client.get(reverse('recommend:tts'))
+
+        self.assertTemplateUsed(response, 'recommend/input_form.html')
+        self.assertContains(response, 'maxlength="2000"')
+
+    def test_plays_audio_inline_without_saving_file(self):
+        self.post.return_value = FakeResponse(200, {'audio_data': 'QUJD'})
+
+        response = self.client.post(reverse('recommend:tts'), {'text': '데미안을 추천합니다.'})
+
+        self.assertTemplateUsed(response, 'recommend/result_audio.html')
+        self.assertContains(response, '<audio controls src="data:audio/mp3;base64,QUJD">')
+        self.assertEqual(self.called_paths(), ['/generate-speech'])
+        self.assertEqual(self.sent(), {'text': '데미안을 추천합니다.'})
+        self.assertEqual(Speech.objects.get().text, '데미안을 추천합니다.')
+
+    def test_failure_goes_to_error_page(self):
+        self.post.return_value = FakeResponse(503)
+
+        response = self.client.post(reverse('recommend:tts'), {'text': '문장'})
+
+        self.assertTemplateUsed(response, 'recommend/error.html')
+        self.assertEqual(Speech.objects.count(), 0)
+
+    def test_empty_text_shows_error(self):
+        response = self.client.post(reverse('recommend:tts'), {'text': ''})
+
+        self.assertContains(response, '필수 항목입니다')
+        self.post.assert_not_called()
+
+    def test_recommendation_page_links_to_speech(self):
+        self.post.side_effect = [
+            FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'}),
+            FakeResponse(503),
+        ]
+
+        response = self.client.post(reverse('recommend:text'), {'request_text': '성장 소설'})
+
+        self.assertContains(response, f'action="{reverse("recommend:tts")}"')
+        self.assertContains(response, 'name="text" value="데미안을 추천합니다."')
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)

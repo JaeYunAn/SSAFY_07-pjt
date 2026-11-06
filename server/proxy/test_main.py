@@ -3,6 +3,7 @@ Proxy 서버 테스트. 실제 GMS 는 호출하지 않고 requests.post 를 가
 
 실행: server/proxy 폴더에서 python -m unittest
 """
+import base64
 import json
 import unittest
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from schemas import (
     ChatRequest,
     ChatScoreRequest,
     DecideRouteRequest,
+    GenerateSpeechRequest,
     ImageAnalysisRequest,
     ImageGenerationRequest,
 )
@@ -280,6 +282,30 @@ class ModelTierTests(ProxyTestCase):
 
         self.assertEqual(result["model_used"], "gpt-5-nano")
         self.assertEqual(self.post.call_count, 2)   # Guardrail + 생성
+
+
+class SpeechTests(ProxyTestCase):
+    """F711 TTS 기능 구현"""
+
+    def test_returns_audio_bytes_as_base64(self):
+        self.post.return_value = FakeResponse(200, content=b"mp3-bytes")
+
+        result = main.generate_speech(GenerateSpeechRequest(text="데미안을 추천합니다."))
+
+        self.assertEqual(result["audio_data"], base64.b64encode(b"mp3-bytes").decode())
+        self.assertTrue(self.called_url().endswith("/audio/speech"))
+        self.assertEqual(
+            self.sent(),
+            {"model": "gpt-4o-mini-tts", "input": "데미안을 추천합니다.", "voice": "nova", "response_format": "mp3"},
+        )
+        self.assertEqual(self.post.call_count, 1)   # Guardrail 대상이 아니다
+
+    def test_failure_becomes_503(self):
+        self.post.return_value = FakeResponse(500, {"error": "down"})
+
+        with self.assertRaises(HTTPException) as caught:
+            main.generate_speech(GenerateSpeechRequest(text="문장"))
+        self.assertEqual(caught.exception.status_code, 503)
 
 
 if __name__ == "__main__":

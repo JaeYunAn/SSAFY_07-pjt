@@ -43,9 +43,7 @@ HEADERS = {"Authorization": f"Bearer {GMS_KEY}"}
 MODEL_NANO = "gpt-5-nano"       # 가볍고 저렴한 모델
 MODEL_MINI = "gpt-5-mini"       # 더 성능 좋은 모델
 MODEL_IMAGE = "gpt-image-1-mini"  # GMS 에는 dall-e 가 없음. 응답은 URL 이 아니라 b64_json
-# TODO [F711] (심화)
-#   1) 아래 줄의 주석을 풀어 MODEL_TTS 상수를 정의한다.
-# MODEL_TTS = "gpt-4o-mini-tts"
+MODEL_TTS = "gpt-4o-mini-tts"
 
 app = FastAPI(title="Book Recommend Proxy (FastAPI)")
 
@@ -288,9 +286,7 @@ def decide_model_tier(prompt):
 # ---------------------------------------------------------------- F711 TTS (심화)
 @app.post("/api/v1/generate-speech", response_model=GenerateSpeechResponse)
 def generate_speech(request: GenerateSpeechRequest):
-    # TODO [F711]  — 파일 위쪽의 MODEL_TTS 상수도 함께 정의한다
-    #   1) payload = {"model": MODEL_TTS, "input": request.text, "voice": "nova", "response_format": "mp3"}
-    #   2) response = gms_post("/audio/speech", payload) 를 호출한다.
-    #   3) audio_data = base64.b64encode(response.content).decode("utf-8") 로 인코딩한다.
-    #   4) {"audio_data": audio_data} 를 반환한다.
-    pass
+    payload = {"model": MODEL_TTS, "input": request.text, "voice": "nova", "response_format": "mp3"}
+    response = gms_post("/audio/speech", payload)
+    # 응답은 JSON 이 아니라 오디오 바이트이므로 content 를 base64 문자열로 바꿔 전달한다
+    return {"audio_data": base64.b64encode(response.content).decode("utf-8")}

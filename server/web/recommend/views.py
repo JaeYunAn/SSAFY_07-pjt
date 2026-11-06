@@ -335,15 +335,28 @@ def recommend_flow(request):
 
 
 # ---------------------------------------------------------------- F711 TTS (심화)
-# 이 항목은 FastAPI 엔드포인트(generate_speech)부터 Django 화면(result_audio.html)까지
-# 기능 하나를 새로 추가하는 경험입니다. Django 쪽 뷰를 직접 작성하고, 결과 템플릿(result_audio.html)에 <audio> 태그를 넣습니다.
 def tts(request):
-    # 위의 (제공) 뷰들과 같은 모양으로 작성한다.
-    # TODO [F711]
-    #   1) POST 이면 form = SpeechForm(request.POST) 를 만들고, is_valid() 를 통과하면 result = form.save()
-    #   2) payload = {'text': result.text} 를 settings.PROXY_URL + '/generate-speech' 로 requests.post 한다.
-    #   3) response.status_code 가 200 이 아니면 error.html 을 반환한다. (status=503)
-    #   4) audio_data = response.json()['audio_data'] 를 꺼내
-    #      context 에 'title', 'result', 'audio_data' 를 담아 'recommend/result_audio.html' 을 반환한다.
-    #   5) GET 이면 form = SpeechForm() 으로 'recommend/input_form.html' 을 반환한다.
-    pass   # form 정의
+    if request.method == 'POST':
+        form = SpeechForm(request.POST)
+        if form.is_valid():
+            result = form.save(commit=False)
+
+            response = call_proxy('/generate-speech', {'text': result.text})
+            failure = failure_page(request, 'tts', result.text, response)
+            if failure:
+                return failure
+
+            result.save()
+            context = {
+                **PAGES['tts'],
+                'result': result,
+                'audio_data': response.json()['audio_data'],    # 파일로 저장하지 않고 화면에 바로 담는다
+            }
+            return render(request, 'recommend/result_audio.html', context)
+    else:
+        form = SpeechForm()
+    context = {
+        **PAGES['tts'],
+        'form': form,
+    }
+    return render(request, 'recommend/input_form.html', context)

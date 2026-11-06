@@ -43,6 +43,15 @@
     </div>
     {% endif %}
 
+    {% if not result.route %}
+    {# 추천 내용을 그대로 TTS 화면으로 보낸다 (F711) #}
+    <form class="listen" method="post" action="{% url 'recommend:tts' %}" data-busy="추천 내용을 음성으로 바꾸고 있습니다.">
+      {% csrf_token %}
+      <input type="hidden" name="text" value="{{ result.content|truncatechars:1800 }}">
+      <button class="pill pill--ghost" type="submit">이 추천 듣기</button>
+    </form>
+    {% endif %}
+
     <a class="back" href="{% url request.resolver_match.view_name %}">다시 입력</a>
   </section>
 </div>
