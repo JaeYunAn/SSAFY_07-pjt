@@ -220,16 +220,15 @@ def image_recommend(request):
             data = response.json()
             image_base64 = data['image_base64']                  # jpeg 파일의 base64 문자열
 
-            # TODO [F712]
-            #   1) image_bytes = base64.b64decode(image_base64) 로 디코딩한다.
-            #   2) result.image.save(f'{uuid.uuid4()}.jpg', ContentFile(image_bytes), save=False) 로 저장한다.
-            #      (uuid: 겹치지 않는 파일 이름. result_image.html 은 result.image 가 있으면 그것을 먼저 보여준다)
+            # F712: media 폴더에 파일로 저장한다. 파일 이름은 겹치지 않도록 uuid 로 만든다.
+            image_bytes = base64.b64decode(image_base64)
+            result.image.save(f'{uuid.uuid4()}.jpg', ContentFile(image_bytes), save=False)
 
             result.save()
             context = {
                 **PAGES['image'],
-                'result': result,
-                'image_base64': image_base64,      # F705: 화면에서 data URI 로 바로 표시
+                'result': result,                   # result.image 가 있으면 /media/ 주소로 표시 (F712)
+                'image_base64': image_base64,       # 파일이 없을 때 data URI 로 표시 (F705)
             }
             return render(request, 'recommend/result_image.html', context)
     else:

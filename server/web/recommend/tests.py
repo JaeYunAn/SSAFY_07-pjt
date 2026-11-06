@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import requests
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
@@ -194,17 +195,40 @@ class DecideRouteScreenTests(ProxyMockTestCase):
         self.assertEqual(Recommendation.objects.get().route, '/images/generations')
 
 
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class ImageGenerationScreenTests(ProxyMockTestCase):
-    """F705 이미지 생성 API"""
+    """F705 이미지 생성 API, F712 이미지 미디어 서빙"""
 
-    def test_shows_image_as_data_uri(self):
-        self.post.return_value = FakeResponse(200, {'image_base64': 'QUJD'})
+    def test_saves_image_to_media_and_shows_media_url(self):
+        self.post.return_value = FakeResponse(200, {'image_base64': base64.b64encode(b'jpeg-bytes').decode()})
 
         response = self.client.post(reverse('recommend:image'), {'request_text': '등대 표지'})
 
         self.assertTemplateUsed(response, 'recommend/result_image.html')
-        self.assertContains(response, 'data:image/jpeg;base64,QUJD')
         self.assertEqual(self.sent(), {'prompt': '등대 표지'})
+        saved = Recommendation.objects.get()
+        self.assertRegex(saved.image.name, r'^images/[0-9a-f-]{36}\.jpg$')
+        self.assertEqual(saved.image.read(), b'jpeg-bytes')
+        self.assertContains(response, f'src="{saved.image.url}"')
+        self.assertTrue(saved.image.url.startswith('/media/images/'))
+        self.assertNotContains(response, 'data:image/jpeg')     # base64 를 HTML 에 담지 않는다
+
+    def test_template_falls_back_to_data_uri_without_file(self):
+        """F705: 파일이 없으면 base64 를 img 의 src 에 직접 넣어 표시한다."""
+        html = render_to_string('recommend/result_image.html', {
+            'result': Recommendation(request_text='등대 표지'),
+            'image_base64': 'QUJD',
+        })
+
+        self.assertIn('src="data:image/jpeg;base64,QUJD"', html)
+
+    def test_failure_saves_no_file(self):
+        self.post.return_value = FakeResponse(403)
+
+        response = self.client.post(reverse('recommend:image'), {'request_text': '잔인한 표지'})
+
+        self.assertTemplateUsed(response, 'recommend/rejected.html')
+        self.assertEqual(Recommendation.objects.count(), 0)
 
 
 class CommonErrorScreenTests(ProxyMockTestCase):
