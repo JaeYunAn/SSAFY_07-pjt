@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>사용자 입력</h3>
+    <div class="result">{{ result.text }}</div>
+    <a class="back" href="{% url 'recommend:tts' %}">← 다시 입력</a>
+  </div>
+  <div class="pane">
+    <h3>FastAPI 결과 (음성)</h3>
+    {# TODO [F711] <audio controls src="data:audio/mp3;base64,{{ audio_data }}"></audio> 를 넣는다. #}
+
+    <div class="meta">오디오는 파일로 저장하지 않고 이 페이지 안에 직접 담겨 있습니다. (data URI)</div>
+  </div>
+</div>
+{% endblock content %}

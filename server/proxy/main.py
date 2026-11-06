@@ -1,0 +1,225 @@
+"""
+FastAPI Proxy 서버. 이 파일 하나가 서버 전부입니다. (Django 만 이 서버를 호출하고, GMS_KEY 는 여기서만 씁니다)
+
+파일이 두 부분으로 나뉩니다.
+  # 제공  — 그대로 사용합니다. 수정하지 않습니다.
+  # TODO  — 요구사항 번호 순서대로 완성합니다.
+          TODO 주석이 적힌 자리에 그 코드를 쓰고, 번호 1) 2) 3) … 은 그 안에서의 순서입니다.
+          [F7xx] 는 그 코드를 작성하는 실습 단계입니다.
+
+실행: uvicorn main:app --port 8081 --reload   (이 폴더 안에서)
+문서: http://localhost:8081/docs
+"""
+import base64
+import json
+import os
+
+import requests
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+
+from schemas import (
+    ChatGuardrailRequest,
+    ChatGuardrailResponse,
+    ChatRequest,
+    ChatResponse,
+    ChatScoreRequest,
+    ChatScoreResponse,
+    DecideRouteRequest,
+    DecideRouteResponse,
+    GenerateSpeechRequest,
+    GenerateSpeechResponse,
+    ImageAnalysisRequest,
+    ImageAnalysisResponse,
+    ImageGenerationRequest,
+    ImageGenerationResponse,
+)
+
+load_dotenv(".env")
+GMS_KEY = os.getenv("GMS_KEY")
+GMS_URL = os.getenv("GMS_URL")
+HEADERS = {"Authorization": f"Bearer {GMS_KEY}"}
+
+MODEL_NANO = "gpt-5-nano"       # 가볍고 저렴한 모델
+MODEL_MINI = "gpt-5-mini"       # 더 성능 좋은 모델
+MODEL_IMAGE = "gpt-image-1-mini"  # GMS 에는 dall-e 가 없음. 응답은 URL 이 아니라 b64_json
+# TODO [F711] (심화)
+#   1) 아래 줄의 주석을 풀어 MODEL_TTS 상수를 정의한다.
+# MODEL_TTS = "gpt-4o-mini-tts"
+
+app = FastAPI(title="Book Recommend Proxy (FastAPI)")
+
+
+# ######################################################################
+# 제공 — 그대로 사용합니다. 수정하지 않습니다.
+# ######################################################################
+
+def ask_gms(messages, model=MODEL_NANO, response_format=None):
+    """채팅 모델에 messages 를 보내고, 답변 문자열만 돌려줍니다."""
+    payload = {"model": model, "messages": messages}
+    if response_format:
+        payload["response_format"] = response_format
+    # gms_post 는 아래 F706 에 있음 (파이썬은 호출 시점에 함수를 찾으므로 순서는 상관없다)
+    response = gms_post("/chat/completions", payload)
+    return response.json()["choices"][0]["message"]["content"]
+
+
+# ######################################################################
+# TODO — 요구사항 번호 순서대로 완성합니다.
+# ######################################################################
+
+# ---------------------------------------------------------------- F702 텍스트 추천 생성 (+F703, F710)
+@app.post("/api/v1/chat/completions", response_model=ChatResponse)
+def chat_completions(request: ChatRequest):
+    # TODO [F703]  — 생성보다 먼저 실행되어야 하므로 이 자리에 쓴다
+    #   1) user_text = request.messages[-1]["content"] 로 사용자 텍스트를 꺼내
+    #      ensure_appropriate(user_text) 를 호출한다. (부적절하면 여기서 403 이 난다)
+
+    # TODO [F710] (심화)
+    #   1) model = MODEL_NANO 로 두고, request.use_tier_routing 이 True 이고
+    #      decide_model_tier(user_text) 가 "complex" 이면 model = MODEL_MINI 로 바꾼다.
+
+    # TODO [F702]
+    #   1) content = ask_gms(request.messages, MODEL_NANO) 로 답변 문자열을 받는다.
+    #   2) {"content": content} 를 반환한다.
+    #      (F710 을 하면 MODEL_NANO 를 model 로 바꾸고 "model_used": model 을 함께 반환한다)
+    pass
+
+
+# ---------------------------------------------------------------- F703 Guardrail
+GUARDRAIL_PROMPT = """
+(이 문장을 지우고 판단 기준을 쓴다) TODO [F703]
+- 부적절 = 폭력·자해·혐오 표현·성인 콘텐츠 요구 / 명백히 불법인 행위의 방법 / 다른 사람의 개인정보 요구
+- 판단이 모호하면 적절한 것으로 본다.
+"""
+
+
+@app.post("/api/v1/chat/guardrail", response_model=ChatGuardrailResponse)
+def chat_guardrail(request: ChatGuardrailRequest):
+    # TODO [F703]
+    #   1) messages = [developer(GUARDRAIL_PROMPT), user(request.prompt)] 를 만든다.
+    #   2) response_format 을 만든다. → 명세서 F703 의 response_format 예시를 그대로 사용한다.
+    #   3) answer = ask_gms(messages, MODEL_NANO, response_format) 을 호출하고
+    #      result = json.loads(answer) 로 JSON 을 해석한다.
+    #   4) {"is_appropriate": result["is_appropriate"]} 를 반환한다.
+    pass
+
+
+def ensure_appropriate(prompt):
+    """생성 함수들이 맨 먼저 호출합니다. 부적절하면 403 오류를 냅니다."""
+    # TODO [F703]
+    #   1) result = chat_guardrail(ChatGuardrailRequest(prompt=prompt)) 를 호출한다.
+    #   2) result["is_appropriate"] 가 False 이면
+    #      HTTPException(status_code=403, detail="inappropriate request") 을 발생시킨다.
+    pass
+
+
+# ---------------------------------------------------------------- F704 라우트 결정
+ROUTE_PROMPT = """
+(이 문장을 지우고 판단 기준을 쓴다) TODO [F704]
+- 텍스트 추천이면 "/chat/completions", 표지 이미지 생성이면 "/images/generations" 를 고르도록 작성한다.
+"""
+
+
+@app.post("/api/v1/decide-route", response_model=DecideRouteResponse)
+def decide_route(request: DecideRouteRequest):
+    # TODO [F704]
+    #   1) messages = [developer(ROUTE_PROMPT), user(request.prompt)] 를 만든다.
+    #   2) response_format 은 F703 것을 복사해 properties 를
+    #      route(string, enum: ["/chat/completions", "/images/generations"]) 로 바꾼다.
+    #   3) ask_gms 의 답변을 json.loads 로 해석해 {"route": ...} 를 반환한다.
+    pass
+
+
+# ---------------------------------------------------------------- F705 이미지 생성 (+F703)
+@app.post("/api/v1/images/generations", response_model=ImageGenerationResponse)
+def image_generations(request: ImageGenerationRequest):
+    # TODO [F703]
+    #   1) ensure_appropriate(request.prompt) 를 호출한다.
+
+    # TODO [F705]
+    #   1) payload = {"model": MODEL_IMAGE, "prompt": request.prompt, "size": "1024x1024",
+    #                 "quality": "low", "output_format": "jpeg"}   (quality·output_format 은 토큰·파일 크기 절약)
+    #   2) response = gms_post("/images/generations", payload) 를 호출하고
+    #      image_base64 = response.json()["data"][0]["b64_json"] 을 꺼낸다. (이미지가 base64 문자열로 바로 온다)
+    #   3) {"image_base64": image_base64} 를 반환한다.
+    pass
+
+
+# ---------------------------------------------------------------- F706 공통 에러 처리
+def gms_post(path, payload):
+    """GMS 에 POST 요청을 보냅니다. 모든 GMS 호출이 이 함수를 거칩니다."""
+    response = requests.post(GMS_URL + path, headers=HEADERS, json=payload, timeout=120)
+    # TODO [F706]
+    #   1) response.status_code 가 200 이 아니면
+    #      print("[GMS 호출 실패]", path, response.status_code, response.text[:200]) 로 터미널에 남기고
+    #   2) HTTPException(status_code=503, detail="model server error") 을 발생시킨다.
+    #      (F706 전에도 동작은 하지만, GMS 호출이 실패하면 503 대신 500 오류가 난다)
+    return response
+
+
+# ---------------------------------------------------------------- F707 이미지 분석 (+F703)
+ANALYSIS_PROMPT = """
+(이 문장을 지우고 지시문을 쓴다) TODO [F707]
+- 책 표지 사진을 보고 제목·장르를 추정하고 비슷한 도서를 2~3권 추천하도록 작성한다.
+"""
+
+
+@app.post("/api/v1/images/analysis", response_model=ImageAnalysisResponse)
+def image_analysis(request: ImageAnalysisRequest):
+    # TODO [F703]
+    #   1) ensure_appropriate(request.question) 를 호출한다.
+
+    # TODO [F707]
+    #   1) image_url = "data:image/png;base64," + request.image_base64
+    #   2) user 메시지의 content 를 리스트로 만든다.
+    #      [{"type": "image_url", "image_url": {"url": image_url}},
+    #      {"type": "text", "text": request.question}]
+    #   3) messages = [developer(ANALYSIS_PROMPT), 위 user 메시지] 로
+    #      content = ask_gms(messages, MODEL_NANO) 를 호출한다.
+    #   4) {"content": content} 를 반환한다.
+    pass
+
+
+# ---------------------------------------------------------------- F709 텍스트 응답 점수 계산 (심화)
+SCORE_PROMPT = """
+(이 문장을 지우고 채점 기준을 쓴다) TODO [F709]
+- 요청과 답변을 보고 0~100 점과 이유(한두 문장)를 매기도록 작성한다.
+"""
+
+
+@app.post("/api/v1/chat/score", response_model=ChatScoreResponse)
+def chat_score(request: ChatScoreRequest):
+    # TODO [F709]
+    #   1) messages = [developer(SCORE_PROMPT)] + request.messages + [user("답변: " + request.answer)]
+    #   2) response_format 은 F703 것을 복사해 properties 를 score(integer), reason(string) 으로 바꾼다.
+    #   3) ask_gms 의 답변을 json.loads 로 해석해 {"score": ..., "reason": ...} 을 반환한다.
+    pass
+
+
+# ---------------------------------------------------------------- F710 모델 등급 라우팅 (심화)
+TIER_PROMPT = """
+(이 문장을 지우고 분류 기준을 쓴다) TODO [F710]
+- 조건이 하나면 "simple", 여러 조건이나 감정·상황을 종합해야 하면 "complex" 로 분류하도록 작성한다.
+"""
+
+
+def decide_model_tier(prompt):
+    # TODO [F710]
+    #   1) messages = [developer(TIER_PROMPT), user(prompt)] 를 만든다.
+    #   2) response_format 은 F703 것을 복사해 properties 를
+    #      tier(string, enum: ["simple", "complex"]) 로 바꾼다.
+    #   3) ask_gms(messages, MODEL_NANO, response_format) 의 답변을 json.loads 로 해석해
+    #      tier 문자열("simple" 또는 "complex")을 반환한다.
+    pass
+
+
+# ---------------------------------------------------------------- F711 TTS (심화)
+@app.post("/api/v1/generate-speech", response_model=GenerateSpeechResponse)
+def generate_speech(request: GenerateSpeechRequest):
+    # TODO [F711]  — 파일 위쪽의 MODEL_TTS 상수도 함께 정의한다
+    #   1) payload = {"model": MODEL_TTS, "input": request.text, "voice": "nova", "response_format": "mp3"}
+    #   2) response = gms_post("/audio/speech", payload) 를 호출한다.
+    #   3) audio_data = base64.b64encode(response.content).decode("utf-8") 로 인코딩한다.
+    #   4) {"audio_data": audio_data} 를 반환한다.
+    pass

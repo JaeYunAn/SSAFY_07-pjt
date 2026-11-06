@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title|default:"AI 도서 추천 서비스" }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background: #f5f6f8; color: #222; }
+    header { background: #2b3a55; color: #fff; padding: 14px 24px; }
+    header h1 { margin: 0 0 8px; font-size: 20px; }
+    nav a { color: #cfd8ea; margin-right: 14px; font-size: 14px; text-decoration: none; }
+    nav a:hover { color: #fff; }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    h2 { font-size: 18px; margin: 0 0 16px; }
+    .panes { display: flex; gap: 20px; align-items: flex-start; }
+    .pane { flex: 1; background: #fff; border: 1px solid #dfe3ea; border-radius: 8px; padding: 18px; min-width: 0; }
+    .pane h3 { margin: 0 0 12px; font-size: 15px; color: #555; }
+    textarea, input[type=text] { width: 100%; padding: 10px; border: 1px solid #c9d0db; border-radius: 6px; font-size: 14px; }
+    label { display: block; font-size: 14px; margin: 10px 0 6px; }
+    button { margin-top: 14px; padding: 10px 18px; background: #2b3a55; color: #fff; border: 0; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    .errorlist { color: #c0392b; font-size: 13px; margin: 4px 0 0; padding-left: 18px; }
+    .result { white-space: pre-wrap; line-height: 1.6; font-size: 15px; }
+    .meta { margin-top: 14px; padding: 10px 12px; background: #f0f4fa; border-radius: 6px; font-size: 13px; color: #444; }
+    .notice { padding: 14px 16px; border-radius: 6px; font-size: 15px; }
+    .notice.reject { background: #fdecea; color: #922b21; }
+    .notice.error { background: #fff4e5; color: #8a5a00; }
+    img.cover { max-width: 100%; border-radius: 6px; border: 1px solid #dfe3ea; }
+    .back { display: inline-block; margin-top: 16px; font-size: 14px; }
+    .warn { margin-top: 12px; font-size: 13px; color: #8a5a00; }
+  </style>
+  {% block css %}
+  {% endblock css %}
+</head>
+<body>
+  <header>
+    <h1>AI 도서 추천 서비스</h1>
+    <nav>
+      <a href="{% url 'recommend:form' %}">입력검증</a>
+      <a href="{% url 'recommend:text' %}">텍스트추천</a>
+      <a href="{% url 'recommend:route' %}">라우트</a>
+      <a href="{% url 'recommend:image' %}">이미지</a>
+      <a href="{% url 'recommend:analyze' %}">이미지분석</a>
+      <a href="{% url 'recommend:flow' %}">흐름제어</a>
+      <a href="{% url 'recommend:tts' %}">TTS</a>
+    </nav>
+  </header>
+  <main>
+    <h2>{{ title }}</h2>
+    {% block content %}
+    {% endblock content %}
+  </main>
+</body>
+</html>

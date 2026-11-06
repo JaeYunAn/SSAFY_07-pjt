@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>사용자 입력</h3>
+    <div class="result">{{ result.request_text }}</div>
+    <div class="meta">라우트 결정: <b>{{ result.route }}</b> → Guardrail 통과</div>
+    <a class="back" href="{% url 'recommend:flow' %}">← 다시 입력</a>
+  </div>
+  <div class="pane">
+    <h3>최종 결과</h3>
+    {% if image_base64 %}
+      <img class="cover" src="data:image/jpeg;base64,{{ image_base64 }}" alt="생성된 표지 이미지">
+    {% else %}
+      <div class="result">{{ result.content }}</div>
+      {% if result.model_used %}<div class="meta">사용된 모델: <b>{{ result.model_used }}</b></div>{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}

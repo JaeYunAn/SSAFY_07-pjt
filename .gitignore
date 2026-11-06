@@ -1,0 +1,16 @@
+# 비밀 값 (NF702: GMS Key 는 GitLab 에 올리지 않는다)
+.env
+
+# 가상환경
+.venv/
+venv/
+
+# 파이썬 / Django 실행 산출물
+__pycache__/
+*.pyc
+server/web/media/
+server/web/db.sqlite3
+
+# 제출 대상이 아닌 원본 자료 (대외비 명세서, 스켈레톤 원본)
+skeleton/
+(26_1106)*.pdf

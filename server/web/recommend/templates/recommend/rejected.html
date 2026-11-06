@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>사용자 입력</h3>
+    <div class="result">{{ user_input }}</div>
+    <a class="back" href="{% url request.resolver_match.view_name %}">← 다시 입력</a>
+  </div>
+  <div class="pane">
+    <h3>FastAPI 결과 (Guardrail)</h3>
+    <div class="notice reject">
+      적절한 요청이 아닙니다.<br>
+      <small>Proxy 서버가 403 으로 거절했습니다. (Guardrail)</small>
+    </div>
+  </div>
+</div>
+{% endblock content %}

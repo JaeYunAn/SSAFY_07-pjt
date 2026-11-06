@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>입력</h3>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form }}
+      <button type="submit">요청 보내기</button>
+    </form>
+    <p class="warn">⚠ 이미지 생성은 토큰을 많이 사용합니다.<br>결과 확인용으로 한 번만 호출하고, 반복 호출은 피해 주세요.</p>
+  </div>
+  <div class="pane">
+    <h3>결과</h3>
+    {% if saved %}
+      <div class="result">입력 검증을 통과했습니다. (저장된 번호: {{ saved.pk }})
+
+{{ saved.request_text }}</div>
+    {% else %}
+      <p style="color:#888; font-size:14px;">왼쪽에 입력하고 요청을 보내면 여기에 결과가 표시됩니다.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}

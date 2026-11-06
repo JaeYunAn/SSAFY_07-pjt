@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>사용자 입력</h3>
+    <div class="result">{{ user_input }}</div>
+    <a class="back" href="{% url request.resolver_match.view_name %}">← 다시 입력</a>
+  </div>
+  <div class="pane">
+    <h3>결과</h3>
+    <div class="notice error">
+      잠시 후 다시 시도해 주세요.<br>
+      <small>Proxy 서버 응답 코드: {{ status_code }} — FastAPI 를 실행한 터미널의 로그를 확인하세요.</small>
+    </div>
+  </div>
+</div>
+{% endblock content %}

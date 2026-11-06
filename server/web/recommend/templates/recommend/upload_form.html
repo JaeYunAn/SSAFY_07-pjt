@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="panes">
+  <div class="pane">
+    <h3>입력</h3>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {{ form }}
+      <button type="submit">분석 요청</button>
+    </form>
+  </div>
+  <div class="pane">
+    <h3>결과</h3>
+    <p style="color:#888; font-size:14px;">책 표지 사진을 올리면 FastAPI 가 분석한 결과가 여기에 표시됩니다.</p>
+  </div>
+</div>
+{% endblock content %}
