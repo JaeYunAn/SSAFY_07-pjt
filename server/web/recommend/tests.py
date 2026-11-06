@@ -184,6 +184,71 @@ class CommonErrorScreenTests(ProxyMockTestCase):
             self.assertContains(response, 'Proxy 서버에 연결하지 못했습니다', status_code=503)
 
 
+class RecommendFlowTests(ProxyMockTestCase):
+    """F708 API 흐름 제어"""
+
+    def flow(self, *responses, text='소설 추천해줘'):
+        self.post.side_effect = list(responses)
+        return self.client.post(reverse('recommend:flow'), {'request_text': text})
+
+    def test_text_route_runs_text_recommend(self):
+        response = self.flow(
+            FakeResponse(200, {'route': '/chat/completions'}),
+            FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'}),
+        )
+
+        self.assertTemplateUsed(response, 'recommend/recommend_flow.html')
+        self.assertContains(response, '데미안을 추천합니다.')
+        self.assertEqual(self.called_paths(), ['/decide-route', '/chat/completions'])
+        self.assertEqual(Recommendation.objects.get().route, '/chat/completions')
+
+    def test_image_route_runs_image_generation(self):
+        response = self.flow(
+            FakeResponse(200, {'route': '/images/generations'}),
+            FakeResponse(200, {'image_base64': 'QUJD'}),
+        )
+
+        self.assertTemplateUsed(response, 'recommend/recommend_flow.html')
+        self.assertContains(response, 'data:image/jpeg;base64,QUJD')
+        self.assertEqual(self.called_paths(), ['/decide-route', '/images/generations'])
+
+    def test_403_goes_to_rejected_page(self):
+        response = self.flow(
+            FakeResponse(200, {'route': '/chat/completions'}),
+            FakeResponse(403, {'detail': 'inappropriate request'}),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTemplateUsed(response, 'recommend/rejected.html')
+        self.assertEqual(Recommendation.objects.count(), 0)
+
+    def test_503_while_generating_goes_to_error_page(self):
+        response = self.flow(FakeResponse(200, {'route': '/images/generations'}), FakeResponse(503))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertTemplateUsed(response, 'recommend/error.html')
+
+    def test_route_failure_stops_before_generation(self):
+        response = self.flow(FakeResponse(503))
+
+        self.assertTemplateUsed(response, 'recommend/error.html')
+        self.assertEqual(self.called_paths(), ['/decide-route'])
+
+    def test_django_never_calls_guardrail_directly(self):
+        self.flow(
+            FakeResponse(200, {'route': '/chat/completions'}),
+            FakeResponse(200, {'content': '답변', 'model_used': 'gpt-5-nano'}),
+        )
+
+        self.assertNotIn('/chat/guardrail', self.called_paths())
+
+    def test_get_shows_one_input_form(self):
+        response = self.client.get(reverse('recommend:flow'))
+
+        self.assertTemplateUsed(response, 'recommend/input_form.html')
+        self.post.assert_not_called()
+
+
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class ImageAnalysisScreenTests(ProxyMockTestCase):
     """F707 이미지 분석 구현"""

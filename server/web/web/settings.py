@@ -20,7 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # .env 에서 Proxy 서버(FastAPI) 주소를 읽습니다. 브라우저가 아니라 Django 만 이 주소를 압니다.
 load_dotenv(BASE_DIR / '.env')
-PROXY_URL = os.getenv('PROXY_URL', 'http://localhost:8081/api/v1')
+# localhost 대신 127.0.0.1 을 쓴다. Windows 에서 localhost 는 IPv6 를 먼저 시도해 호출마다 2초씩 늦어진다.
+PROXY_URL = os.getenv('PROXY_URL', 'http://127.0.0.1:8081/api/v1')
 
 
 # Quick-start development settings - unsuitable for production

@@ -93,6 +93,14 @@ def failure_page(request, page, user_input, response):
     return None
 
 
+def recommendation_messages(request_text):
+    """도서 추천을 요청하는 messages 를 만듭니다. (F702, F708 공통)"""
+    return [
+        {'role': 'developer', 'content': RECOMMEND_SYSTEM_PROMPT},
+        {'role': 'user', 'content': request_text},
+    ]
+
+
 # ---------------------------------------------------------------- 서비스 소개
 def home(request):
     return render(request, 'recommend/home.html', {'title': 'AI 도서 추천 서비스'})
@@ -125,11 +133,9 @@ def text_recommend(request):
             result = form.save(commit=False)
 
             # 1) Proxy 서버에 추천 생성을 요청한다
+            messages = recommendation_messages(result.request_text)
             payload = {
-                'messages': [
-                    {'role': 'developer', 'content': RECOMMEND_SYSTEM_PROMPT},
-                    {'role': 'user', 'content': result.request_text},
-                ],
+                'messages': messages,
                 'use_tier_routing': result.use_tier_routing,     # F710
             }
             response = call_proxy('/chat/completions', payload)
@@ -277,23 +283,54 @@ def image_analysis(request):
 # ---------------------------------------------------------------- F708 API 흐름 제어
 def recommend_flow(request):
     """하나의 입력으로 라우트 결정 → 실행 → 결과 정리까지."""
-    # 위의 F704, F702, F705 뷰를 이어 붙이는 모양이다.
-    # TODO [F708]
-    #   1) POST 이면 form = RecommendationForm(request.POST) 를 만들고,
-    #      is_valid() 를 통과하면 result = form.save(commit=False)
-    #   2) F704 와 같은 방법으로 '/decide-route' 를 호출해 result.route = data['route'] 를 담는다.
-    #      (200 이 아니면 error.html, status=503)
-    #   3) image_base64 = '' 로 두고, result.route 가 '/images/generations' 이면
-    #      F705 와 같은 payload 로 '/images/generations' 를, 아니면
-    #      F702 와 같은 payload 로 '/chat/completions' 를 호출한다.
-    #   4) 응답 코드를 확인한다. 403 이면 rejected.html(status=403),
-    #      200 이 아니면 error.html(status=503).
-    #   5) data = response.json() 에서 이미지면 image_base64 = data['image_base64'] 를,
-    #      아니면 result.content 와 result.model_used 를 담는다.
-    #   6) result.save() 후 context 에 'title', 'result', 'image_base64' 를 담아
-    #      'recommend/recommend_flow.html' 을 반환한다.
-    #   7) GET 이면 빈 폼으로 'recommend/input_form.html' 을 반환한다.
-    pass   # form 정의
+    if request.method == 'POST':
+        form = RecommendationForm(request.POST)
+        if form.is_valid():
+            result = form.save(commit=False)
+
+            # 1) 라우트를 결정한다
+            response = call_proxy('/decide-route', {'prompt': result.request_text})
+            failure = failure_page(request, 'flow', result.request_text, response)
+            if failure:
+                return failure
+            result.route = response.json()['route']
+
+            # 2) 결정된 기능을 실행한다 (Guardrail 은 FastAPI 안에서 자동으로 먼저 실행된다)
+            is_image = result.route == '/images/generations'
+            if is_image:
+                response = call_proxy('/images/generations', {'prompt': result.request_text})
+            else:
+                payload = {
+                    'messages': recommendation_messages(result.request_text),
+                    'use_tier_routing': result.use_tier_routing,
+                }
+                response = call_proxy('/chat/completions', payload)
+            failure = failure_page(request, 'flow', result.request_text, response)
+            if failure:
+                return failure
+
+            # 3) 결과를 한 화면으로 정리한다
+            data = response.json()
+            image_base64 = ''
+            if is_image:
+                image_base64 = data['image_base64']
+            else:
+                result.content = data['content']
+                result.model_used = data['model_used']
+            result.save()
+            context = {
+                **PAGES['flow'],
+                'result': result,
+                'image_base64': image_base64,
+            }
+            return render(request, 'recommend/recommend_flow.html', context)
+    else:
+        form = RecommendationForm()
+    context = {
+        **PAGES['flow'],
+        'form': form,
+    }
+    return render(request, 'recommend/input_form.html', context)
 
 
 # ---------------------------------------------------------------- F711 TTS (심화)
