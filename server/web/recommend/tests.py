@@ -114,6 +114,33 @@ class TextRecommendTests(ProxyMockTestCase):
         self.post.assert_not_called()
 
 
+class ScoreScreenTests(ProxyMockTestCase):
+    """F709 텍스트 응답 점수 계산"""
+    answer = FakeResponse(200, {'content': '데미안을 추천합니다.', 'model_used': 'gpt-5-nano'})
+
+    def recommend(self, score_response):
+        self.post.side_effect = [self.answer, score_response]
+        return self.client.post(reverse('recommend:text'), {'request_text': '성장 소설 추천해줘'})
+
+    def test_score_is_saved_and_shown(self):
+        response = self.recommend(FakeResponse(200, {'score': 90, 'reason': '조건을 충족합니다.'}))
+
+        self.assertEqual(self.called_paths(), ['/chat/completions', '/chat/score'])
+        self.assertEqual(self.sent(1)['answer'], '데미안을 추천합니다.')
+        self.assertEqual(self.sent(1)['messages'][-1]['content'], '성장 소설 추천해줘')
+        self.assertContains(response, '답변 점수 90 / 100')
+        self.assertContains(response, '조건을 충족합니다.')
+        saved = Recommendation.objects.get()
+        self.assertEqual((saved.score, saved.reason), (90, '조건을 충족합니다.'))
+
+    def test_score_failure_still_shows_recommendation(self):
+        for failure in (FakeResponse(503), requests.Timeout('slow')):
+            response = self.recommend(failure)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, '데미안을 추천합니다.')
+            self.assertNotContains(response, '답변 점수')
+
+
 class GuardrailScreenTests(ProxyMockTestCase):
     """F703 Guardrail 구현 — Proxy 가 403 을 돌려주면 거절 화면을 보여주고 저장하지 않는다"""
 

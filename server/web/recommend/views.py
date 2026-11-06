@@ -150,12 +150,13 @@ def text_recommend(request):
             result.content = data['content']
             result.model_used = data['model_used']               # F710
 
-            # TODO [F709]
-            #   1) 위 payload 를 복사해 'use_tier_routing' 대신 'answer': result.content 를 넣는다.
-            #   2) settings.PROXY_URL + '/chat/score' 로 requests.post 한다.
-            #   3) response.status_code 가 200 이면 data = response.json() 에서
-            #      result.score = data['score'], result.reason = data['reason'] 로 담는다.
-            #      (화면 표시는 result_text.html 에 준비되어 있음)
+            # 4) 답변이 취향에 얼마나 맞는지 채점한다 (F709). 채점이 실패해도 추천은 그대로 보여준다
+            score_payload = {'messages': messages, 'answer': result.content}
+            score_response = call_proxy('/chat/score', score_payload)
+            if score_response is not None and score_response.status_code == 200:
+                score = score_response.json()
+                result.score = score['score']
+                result.reason = score['reason']
 
             result.save()
             context = {

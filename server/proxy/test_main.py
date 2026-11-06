@@ -14,6 +14,7 @@ import main
 from schemas import (
     ChatGuardrailRequest,
     ChatRequest,
+    ChatScoreRequest,
     DecideRouteRequest,
     ImageAnalysisRequest,
     ImageGenerationRequest,
@@ -214,6 +215,40 @@ class ImageAnalysisTests(ProxyTestCase):
         image_part, text_part = sent["messages"][1]["content"]
         self.assertEqual(image_part, {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,QUJD"}})
         self.assertEqual(text_part, {"type": "text", "text": "어떤 책일까?"})
+
+
+class ScoreTests(ProxyTestCase):
+    """F709 텍스트 응답 점수 계산"""
+    messages = [
+        {"role": "developer", "content": "추천 지시문"},
+        {"role": "user", "content": "성장 소설 추천해줘"},
+    ]
+
+    def score(self, **reply):
+        self.post.side_effect = [json_reply(**reply)]
+        return main.chat_score(ChatScoreRequest(messages=self.messages, answer="데미안을 추천합니다."))
+
+    def test_returns_score_and_reason_as_json(self):
+        result = self.score(score=90, reason="조건을 충족합니다.")
+
+        self.assertEqual(result, {"score": 90, "reason": "조건을 충족합니다."})
+        sent = self.sent()
+        self.assertEqual(sent["model"], "gpt-5-nano")
+        properties = sent["response_format"]["json_schema"]["schema"]["properties"]
+        self.assertEqual(properties["score"], {"type": "integer"})
+        self.assertEqual(properties["reason"], {"type": "string"})
+
+    def test_sends_request_and_answer_without_recommend_instruction(self):
+        self.score(score=90, reason="이유")
+
+        contents = [message["content"] for message in self.sent()["messages"]]
+        self.assertIn("성장 소설 추천해줘", contents)
+        self.assertIn("답변: 데미안을 추천합니다.", contents)
+        self.assertNotIn("추천 지시문", contents)
+
+    def test_score_is_kept_between_0_and_100(self):
+        self.assertEqual(self.score(score=130, reason="이유")["score"], 100)
+        self.assertEqual(self.score(score=-5, reason="이유")["score"], 0)
 
 
 if __name__ == "__main__":
